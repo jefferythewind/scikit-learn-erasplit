@@ -26,6 +26,8 @@ from scipy.special.cython_special cimport xlogy
 from ._utils cimport log
 from ._utils cimport WeightedMedianCalculator
 
+from libc.stdio cimport printf
+
 # EPSILON is used in the Poisson criterion
 cdef double EPSILON = 10 * np.finfo('double').eps
 
@@ -782,7 +784,584 @@ cdef class RegressionCriterion(Criterion):
         for k in range(self.n_outputs):
             dest[k] = self.sum_total[k] / self.weighted_n_node_samples
 
+cdef class MasterEraRegressionCriterion(Criterion):
+    r"""Abstract regression criterion using eras.
+    
+    Creates a separate regression criterion for each era
+    """
 
+    def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples, long[:] eras):
+        """Initialize parameters for this criterion.
+
+        Parameters
+        ----------
+        n_outputs : SIZE_t
+            The number of targets to be predicted
+
+        n_samples : SIZE_t
+            The total number of samples to fit on
+        """
+        # Default values
+        self.start = 0
+        self.pos = 0
+        self.end = 0
+
+        self.n_outputs = n_outputs
+        self.n_samples = n_samples
+        self.n_node_samples = 0
+        self.weighted_n_node_samples = 0.0
+        self.weighted_n_left = 0.0
+        self.weighted_n_right = 0.0
+
+        self.sq_sum_total = 0.0
+
+        self.sum_total = np.zeros(n_outputs, dtype=np.float64)
+        self.sum_left = np.zeros(n_outputs, dtype=np.float64)
+        self.sum_right = np.zeros(n_outputs, dtype=np.float64)
+        
+        self.eras = eras
+        self.era_list = np.unique(eras)
+        self.era_criteria = np.empty( len(self.era_list), dtype=RegressionCriterion )
+        self.num_eras = <double>len(self.era_list)
+
+        for j in range(0, len(self.era_list)):
+            self.era_criteria[j] = ERAMSE( n_outputs, n_samples, eras, j )
+
+    def __reduce__(self):
+        return (type(self), (self.n_outputs, self.n_samples), self.__getstate__())
+
+    cdef int init(
+        self,
+        const DOUBLE_t[:, ::1] y,
+        const DOUBLE_t[:] sample_weight,
+        double weighted_n_samples,
+        const SIZE_t[:] sample_indices,
+        SIZE_t start,
+        SIZE_t end,
+    ) except -1 nogil:
+        """Initialize the criterion.
+
+        This initializes the criterion at node sample_indices[start:end] and children
+        sample_indices[start:start] and sample_indices[start:end].
+        """
+        # Initialize fields
+        self.y = y
+        self.sample_weight = sample_weight
+        self.sample_indices = sample_indices
+        self.start = start
+        self.end = end
+        self.n_node_samples = 0 #end - start
+        self.weighted_n_samples = weighted_n_samples
+        self.weighted_n_node_samples = 0.
+
+
+        for j in range(0, len(self.era_list)):
+            self.era_criteria[j].init(
+                y,
+                sample_weight,
+                weighted_n_samples,
+                sample_indices,
+                start,
+                end
+            )
+
+        # Reset to pos=start
+        self.reset()
+        return 0
+
+    cdef int reset(self) except -1 nogil:
+        """Reset the criterion at pos=start."""
+        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
+        memset(&self.sum_left[0], 0, n_bytes)
+        memcpy(&self.sum_right[0], &self.sum_total[0], n_bytes)
+
+        self.weighted_n_left = 0.0
+        self.weighted_n_right = self.weighted_n_node_samples
+        self.pos = self.start
+        return 0
+
+    cdef int reverse_reset(self) except -1 nogil:
+        """Reset the criterion at pos=end."""
+        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
+        memset(&self.sum_right[0], 0, n_bytes)
+        memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
+
+        self.weighted_n_right = 0.0
+        self.weighted_n_left = self.weighted_n_node_samples
+        self.pos = self.end
+        return 0
+
+    cdef int update(self, SIZE_t new_pos) except -1 nogil:
+        """Updated statistics by moving sample_indices[pos:new_pos] to the left."""
+        for j in range(0, len(self.era_list)):
+            self.era_criteria[j].update(
+                new_pos
+            )
+        return 0
+
+    cdef double node_impurity(self) noexcept nogil:
+        pass
+
+    cdef void children_impurity(self, double* impurity_left,
+                                double* impurity_right) noexcept nogil:
+        pass
+
+    cdef void node_value(self, double* dest) noexcept nogil:
+        """Compute the node value of sample_indices[start:end] into dest."""
+        cdef SIZE_t k
+
+        for k in range(self.n_outputs):
+            dest[k] = 0
+            for j in range(0, len(self.era_list)):
+                dest[k] += self.era_criteria[j].sum_total[k]
+            dest[k] /= self.weighted_n_node_samples
+
+
+
+
+cdef class MasterERAMSE(MasterEraRegressionCriterion):
+    """Mean squared error impurity criterion.
+
+        MSE = var_left + var_right
+    """
+
+    cdef double node_impurity(self) noexcept nogil:
+        """Evaluate the impurity of the current node.
+
+        Evaluate the MSE criterion as impurity of the current node,
+        i.e. the impurity of sample_indices[start:end]. The smaller the impurity the
+        better.
+        """
+        cdef double impurity = 0
+
+        for j in range(0, len(self.era_list)):
+            impurity += self.era_criteria[j].node_impurity()
+
+        if self.num_eras > 0:
+            impurity = impurity / self.num_eras
+
+        return impurity
+
+    cdef double proxy_impurity_improvement(self) noexcept nogil:
+        """Compute a proxy of the impurity reduction.
+
+        This method is used to speed up the search for the best split.
+        It is a proxy quantity such that the split that maximizes this value
+        also maximizes the impurity improvement. It neglects all constant terms
+        of the impurity decrease for a given split.
+
+        The absolute impurity improvement is only computed by the
+        impurity_improvement method once the best split has been found.
+
+        The MSE proxy is derived from
+
+            sum_{i left}(y_i - y_pred_L)^2 + sum_{i right}(y_i - y_pred_R)^2
+            = sum(y_i^2) - n_L * mean_{i left}(y_i)^2 - n_R * mean_{i right}(y_i)^2
+
+        Neglecting constant terms, this gives:
+
+            - 1/n_L * sum_{i left}(y_i)^2 - 1/n_R * sum_{i right}(y_i)^2
+        """
+        cdef double impurity_improvement = 0
+        
+        for j in range(0, len(self.era_list)):
+            impurity_improvement += self.era_criteria[j].proxy_impurity_improvement()
+
+        if self.num_eras > 0:
+            impurity_improvement = impurity_improvement / self.num_eras
+
+        return impurity_improvement
+
+    cdef void children_impurity(self, double* impurity_left,
+                                double* impurity_right) noexcept nogil:
+        """Evaluate the impurity in children nodes.
+
+        i.e. the impurity of the left child (sample_indices[start:pos]) and the
+        impurity the right child (sample_indices[pos:end]).
+        """
+        cdef const DOUBLE_t[:] sample_weight = self.sample_weight
+        cdef const SIZE_t[:] sample_indices = self.sample_indices
+        cdef SIZE_t pos = self.pos
+        cdef SIZE_t start = self.start
+
+        cdef DOUBLE_t y_ik
+
+        cdef double sq_sum_left = 0.0
+        cdef double sq_sum_right
+
+        cdef SIZE_t i
+        cdef SIZE_t p
+        cdef SIZE_t k
+        cdef DOUBLE_t w = 1.0
+
+        for p in range(start, pos):
+            i = sample_indices[p]
+
+            if sample_weight is not None:
+                w = sample_weight[i]
+
+            for k in range(self.n_outputs):
+                y_ik = self.y[i, k]
+                sq_sum_left += w * y_ik * y_ik
+
+        sq_sum_right = self.sq_sum_total - sq_sum_left
+
+        impurity_left[0] = sq_sum_left / self.weighted_n_left
+        impurity_right[0] = sq_sum_right / self.weighted_n_right
+
+        for k in range(self.n_outputs):
+            impurity_left[0] -= (self.sum_left[k] / self.weighted_n_left) ** 2.0
+            impurity_right[0] -= (self.sum_right[k] / self.weighted_n_right) ** 2.0
+
+        impurity_left[0] /= self.n_outputs
+        impurity_right[0] /= self.n_outputs
+
+
+
+cdef class EraRegressionCriterion(Criterion):
+    r"""Abstract regression criterion using eras.
+    
+    Creates a separate regression criterion for each era
+    """
+
+    def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples, long[:] eras, int era_num):
+        """Initialize parameters for this criterion.
+
+        Parameters
+        ----------
+        n_outputs : SIZE_t
+            The number of targets to be predicted
+
+        n_samples : SIZE_t
+            The total number of samples to fit on
+        """
+        # Default values
+        self.start = 0
+        self.pos = 0
+        self.end = 0
+
+        self.n_outputs = n_outputs
+        self.n_samples = n_samples
+        self.n_node_samples = 0
+        self.weighted_n_node_samples = 0.0
+        self.weighted_n_left = 0.0
+        self.weighted_n_right = 0.0
+
+        self.sq_sum_total = 0.0
+
+        self.sum_total = np.zeros(n_outputs, dtype=np.float64)
+        self.sum_left = np.zeros(n_outputs, dtype=np.float64)
+        self.sum_right = np.zeros(n_outputs, dtype=np.float64)
+        
+        self.eras = eras
+        self.era_list = np.unique(eras)
+        self.era_indices = np.empty(0, dtype=long) 
+        for k in range(0, len(self.eras)):
+            if self.eras[k] == self.era_list[era_num]:
+                self.era_indices = np.append(self.era_indices, k)
+
+        printf("era indices\n")
+        for k in range(0, len(self.era_indices)):
+            printf("era_index: %d\n", self.era_indices[k])
+
+    def __reduce__(self):
+        return (type(self), (self.n_outputs, self.n_samples), self.__getstate__())
+
+    cdef int init(
+        self,
+        const DOUBLE_t[:, ::1] y,
+        const DOUBLE_t[:] sample_weight,
+        double weighted_n_samples,
+        const SIZE_t[:] sample_indices,
+        SIZE_t start,
+        SIZE_t end,
+    ) except -1 nogil:
+        """Initialize the criterion.
+
+        This initializes the criterion at node sample_indices[start:end] and children
+        sample_indices[start:start] and sample_indices[start:end].
+        """
+        # Initialize fields
+        self.y = y
+        self.sample_weight = sample_weight
+        self.sample_indices = sample_indices
+        self.start = start
+        self.end = end
+        self.n_node_samples = 0 #end - start
+        self.weighted_n_samples = weighted_n_samples
+        self.weighted_n_node_samples = 0.
+
+        printf("Init\n")
+        printf("Len y %d, start %d, end %d \n", ( len(self.y), self.start, self.end ) )
+        printf("Len sample indices %d\n",  len(self.sample_indices) )
+        printf("n_node_samples %d\n", self.n_node_samples)
+        printf("--------- \n")
+
+        cdef SIZE_t i
+        cdef SIZE_t p
+        cdef SIZE_t k
+        cdef DOUBLE_t y_ik
+        cdef DOUBLE_t w_y_ik
+        cdef DOUBLE_t w = 1.0
+        self.sq_sum_total = 0.0
+        memset(&self.sum_total[0], 0, self.n_outputs * sizeof(double))
+
+        cdef int era_indicator = 0
+
+        for p in range(start, end):
+            i = sample_indices[p]
+
+            era_indicator = 0
+            for j in range(0, len(self.era_indices)):
+                if self.era_indices[j] == i:
+                    era_indicator = 1
+                    break
+
+            if era_indicator == 1:
+                self.n_node_samples += 1
+                printf("p: %d\n", p)
+                printf("sample index %d\n", i)
+
+                if sample_weight is not None:
+                    w = sample_weight[i]
+
+                for k in range(self.n_outputs):
+                    y_ik = self.y[i, k]
+                    w_y_ik = w * y_ik
+                    self.sum_total[k] += w_y_ik
+                    self.sq_sum_total += w_y_ik * y_ik
+
+                self.weighted_n_node_samples += w
+        printf("--------------\n")
+
+        # Reset to pos=start
+        self.reset()
+        return 0
+
+    cdef int reset(self) except -1 nogil:
+        """Reset the criterion at pos=start."""
+        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
+        memset(&self.sum_left[0], 0, n_bytes)
+        memcpy(&self.sum_right[0], &self.sum_total[0], n_bytes)
+
+        self.weighted_n_left = 0.0
+        self.weighted_n_right = self.weighted_n_node_samples
+        self.pos = self.start
+        return 0
+
+    cdef int reverse_reset(self) except -1 nogil:
+        """Reset the criterion at pos=end."""
+        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
+        memset(&self.sum_right[0], 0, n_bytes)
+        memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
+
+        self.weighted_n_right = 0.0
+        self.weighted_n_left = self.weighted_n_node_samples
+        self.pos = self.end
+        return 0
+
+    cdef int update(self, SIZE_t new_pos) except -1 nogil:
+        """Updated statistics by moving sample_indices[pos:new_pos] to the left."""
+        cdef const DOUBLE_t[:] sample_weight = self.sample_weight
+        cdef const SIZE_t[:] sample_indices = self.sample_indices
+
+        cdef SIZE_t pos = self.pos
+        cdef SIZE_t end = self.end
+        cdef SIZE_t i
+        cdef SIZE_t p
+        cdef SIZE_t k
+        cdef DOUBLE_t w = 1.0
+
+        # Update statistics up to new_pos
+        #
+        # Given that
+        #           sum_left[x] +  sum_right[x] = sum_total[x]
+        # and that sum_total is known, we are going to update
+        # sum_left from the direction that require the least amount
+        # of computations, i.e. from pos to new_pos or from end to new_pos.
+
+        # printf('era length\n')
+        # printf('%d\n', len( self.era_list) )
+        # printf('--------\n')
+
+        # for j in range(0, len(self.era_list)):
+        #     printf('%d\n', self.era_list[j])
+
+        cdef int era_indicator = 0
+
+        if (new_pos - pos) <= (end - new_pos):
+            for p in range(pos, new_pos):
+                i = sample_indices[p]
+
+                era_indicator = 0
+                for j in range(0, len(self.era_indices)):
+                    if self.era_indices[j] == i:
+                        era_indicator = 1
+                        break
+
+                if era_indicator == 1:
+                    if sample_weight is not None:
+                        w = sample_weight[i]
+
+                    for k in range(self.n_outputs):
+                        self.sum_left[k] += w * self.y[i, k]
+
+                    self.weighted_n_left += w
+        else:
+            self.reverse_reset()
+
+            for p in range(end - 1, new_pos - 1, -1):
+                i = sample_indices[p]
+
+                era_indicator = 0
+                for j in range(0, len(self.era_indices)):
+                    if self.era_indices[j] == i:
+                        era_indicator = 1
+                        break
+
+                if era_indicator == 1:
+
+                    if sample_weight is not None:
+                        w = sample_weight[i]
+
+                    for k in range(self.n_outputs):
+                        self.sum_left[k] -= w * self.y[i, k]
+
+                    self.weighted_n_left -= w
+
+        self.weighted_n_right = (self.weighted_n_node_samples -
+                                 self.weighted_n_left)
+        for k in range(self.n_outputs):
+            self.sum_right[k] = self.sum_total[k] - self.sum_left[k]
+
+        self.pos = new_pos
+        return 0
+
+    cdef double node_impurity(self) noexcept nogil:
+        pass
+
+    cdef void children_impurity(self, double* impurity_left,
+                                double* impurity_right) noexcept nogil:
+        pass
+
+    cdef void node_value(self, double* dest) noexcept nogil:
+        """Compute the node value of sample_indices[start:end] into dest."""
+        cdef SIZE_t k
+
+        for k in range(self.n_outputs):
+            dest[k] = self.sum_total[k] / self.weighted_n_node_samples
+
+
+
+
+cdef class ERAMSE(EraRegressionCriterion):
+    """Mean squared error impurity criterion.
+
+        MSE = var_left + var_right
+    """
+
+    cdef double node_impurity(self) noexcept nogil:
+        """Evaluate the impurity of the current node.
+
+        Evaluate the MSE criterion as impurity of the current node,
+        i.e. the impurity of sample_indices[start:end]. The smaller the impurity the
+        better.
+        """
+        cdef double impurity
+        cdef SIZE_t k
+
+        impurity = self.sq_sum_total / self.weighted_n_node_samples
+        for k in range(self.n_outputs):
+            impurity -= (self.sum_total[k] / self.weighted_n_node_samples)**2.0
+
+        return impurity / self.n_outputs
+
+    cdef double proxy_impurity_improvement(self) noexcept nogil:
+        """Compute a proxy of the impurity reduction.
+
+        This method is used to speed up the search for the best split.
+        It is a proxy quantity such that the split that maximizes this value
+        also maximizes the impurity improvement. It neglects all constant terms
+        of the impurity decrease for a given split.
+
+        The absolute impurity improvement is only computed by the
+        impurity_improvement method once the best split has been found.
+
+        The MSE proxy is derived from
+
+            sum_{i left}(y_i - y_pred_L)^2 + sum_{i right}(y_i - y_pred_R)^2
+            = sum(y_i^2) - n_L * mean_{i left}(y_i)^2 - n_R * mean_{i right}(y_i)^2
+
+        Neglecting constant terms, this gives:
+
+            - 1/n_L * sum_{i left}(y_i)^2 - 1/n_R * sum_{i right}(y_i)^2
+        """
+        cdef SIZE_t k
+        cdef double proxy_impurity_left = 0.0
+        cdef double proxy_impurity_right = 0.0
+
+        for k in range(self.n_outputs):
+            proxy_impurity_left += self.sum_left[k] * self.sum_left[k]
+            proxy_impurity_right += self.sum_right[k] * self.sum_right[k]
+
+        return (proxy_impurity_left / self.weighted_n_left +
+                proxy_impurity_right / self.weighted_n_right)
+
+    cdef void children_impurity(self, double* impurity_left,
+                                double* impurity_right) noexcept nogil:
+        """Evaluate the impurity in children nodes.
+
+        i.e. the impurity of the left child (sample_indices[start:pos]) and the
+        impurity the right child (sample_indices[pos:end]).
+        """
+        cdef const DOUBLE_t[:] sample_weight = self.sample_weight
+        cdef const SIZE_t[:] sample_indices = self.sample_indices
+        cdef SIZE_t pos = self.pos
+        cdef SIZE_t start = self.start
+
+        cdef DOUBLE_t y_ik
+
+        cdef double sq_sum_left = 0.0
+        cdef double sq_sum_right
+
+        cdef SIZE_t i
+        cdef SIZE_t p
+        cdef SIZE_t k
+        cdef DOUBLE_t w = 1.0
+
+        cdef int era_indicator = 0
+
+        for p in range(start, pos):
+            i = sample_indices[p]
+
+            era_indicator = 0
+            for j in range(0, len(self.era_indices)):
+                if self.era_indices[j] == i:
+                    era_indicator = 1
+                    break
+
+            if era_indicator == 1:
+
+                if sample_weight is not None:
+                    w = sample_weight[i]
+
+                for k in range(self.n_outputs):
+                    y_ik = self.y[i, k]
+                    sq_sum_left += w * y_ik * y_ik
+
+        sq_sum_right = self.sq_sum_total - sq_sum_left
+
+        impurity_left[0] = sq_sum_left / self.weighted_n_left
+        impurity_right[0] = sq_sum_right / self.weighted_n_right
+
+        for k in range(self.n_outputs):
+            impurity_left[0] -= (self.sum_left[k] / self.weighted_n_left) ** 2.0
+            impurity_right[0] -= (self.sum_right[k] / self.weighted_n_right) ** 2.0
+
+        impurity_left[0] /= self.n_outputs
+        impurity_right[0] /= self.n_outputs
+
+            
 cdef class MSE(RegressionCriterion):
     """Mean squared error impurity criterion.
 
@@ -879,7 +1458,6 @@ cdef class MSE(RegressionCriterion):
 
         impurity_left[0] /= self.n_outputs
         impurity_right[0] /= self.n_outputs
-
 
 cdef class MAE(RegressionCriterion):
     r"""Mean absolute error impurity criterion.
