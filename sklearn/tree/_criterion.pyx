@@ -784,247 +784,13 @@ cdef class RegressionCriterion(Criterion):
         for k in range(self.n_outputs):
             dest[k] = self.sum_total[k] / self.weighted_n_node_samples
 
-cdef class MasterEraRegressionCriterion(Criterion):
-    r"""Abstract regression criterion using eras.
-    
-    Creates a separate regression criterion for each era
-    """
-
-    def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples, long[:] eras):
-        """Initialize parameters for this criterion.
-
-        Parameters
-        ----------
-        n_outputs : SIZE_t
-            The number of targets to be predicted
-
-        n_samples : SIZE_t
-            The total number of samples to fit on
-        """
-        # Default values
-        self.start = 0
-        self.pos = 0
-        self.end = 0
-
-        self.n_outputs = n_outputs
-        self.n_samples = n_samples
-        self.n_node_samples = 0
-        self.weighted_n_node_samples = 0.0
-        self.weighted_n_left = 0.0
-        self.weighted_n_right = 0.0
-
-        self.sq_sum_total = 0.0
-
-        self.sum_total = np.zeros(n_outputs, dtype=np.float64)
-        self.sum_left = np.zeros(n_outputs, dtype=np.float64)
-        self.sum_right = np.zeros(n_outputs, dtype=np.float64)
-        
-        self.eras = eras
-        self.era_list = np.unique(eras)
-        self.era_criteria = np.empty( len(self.era_list), dtype=RegressionCriterion )
-        self.num_eras = <double>len(self.era_list)
-
-        for j in range(0, len(self.era_list)):
-            self.era_criteria[j] = ERAMSE( n_outputs, n_samples, eras, j )
-
-    def __reduce__(self):
-        return (type(self), (self.n_outputs, self.n_samples), self.__getstate__())
-
-    cdef int init(
-        self,
-        const DOUBLE_t[:, ::1] y,
-        const DOUBLE_t[:] sample_weight,
-        double weighted_n_samples,
-        const SIZE_t[:] sample_indices,
-        SIZE_t start,
-        SIZE_t end,
-    ) except -1 nogil:
-        """Initialize the criterion.
-
-        This initializes the criterion at node sample_indices[start:end] and children
-        sample_indices[start:start] and sample_indices[start:end].
-        """
-        # Initialize fields
-        self.y = y
-        self.sample_weight = sample_weight
-        self.sample_indices = sample_indices
-        self.start = start
-        self.end = end
-        self.n_node_samples = 0 #end - start
-        self.weighted_n_samples = weighted_n_samples
-        self.weighted_n_node_samples = 0.
-
-
-        for j in range(0, len(self.era_list)):
-            self.era_criteria[j].init(
-                y,
-                sample_weight,
-                weighted_n_samples,
-                sample_indices,
-                start,
-                end
-            )
-
-        # Reset to pos=start
-        self.reset()
-        return 0
-
-    cdef int reset(self) except -1 nogil:
-        """Reset the criterion at pos=start."""
-        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        memset(&self.sum_left[0], 0, n_bytes)
-        memcpy(&self.sum_right[0], &self.sum_total[0], n_bytes)
-
-        self.weighted_n_left = 0.0
-        self.weighted_n_right = self.weighted_n_node_samples
-        self.pos = self.start
-        return 0
-
-    cdef int reverse_reset(self) except -1 nogil:
-        """Reset the criterion at pos=end."""
-        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        memset(&self.sum_right[0], 0, n_bytes)
-        memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
-
-        self.weighted_n_right = 0.0
-        self.weighted_n_left = self.weighted_n_node_samples
-        self.pos = self.end
-        return 0
-
-    cdef int update(self, SIZE_t new_pos) except -1 nogil:
-        """Updated statistics by moving sample_indices[pos:new_pos] to the left."""
-        for j in range(0, len(self.era_list)):
-            self.era_criteria[j].update(
-                new_pos
-            )
-        return 0
-
-    cdef double node_impurity(self) noexcept nogil:
-        pass
-
-    cdef void children_impurity(self, double* impurity_left,
-                                double* impurity_right) noexcept nogil:
-        pass
-
-    cdef void node_value(self, double* dest) noexcept nogil:
-        """Compute the node value of sample_indices[start:end] into dest."""
-        cdef SIZE_t k
-
-        for k in range(self.n_outputs):
-            dest[k] = 0
-            for j in range(0, len(self.era_list)):
-                dest[k] += self.era_criteria[j].sum_total[k]
-            dest[k] /= self.weighted_n_node_samples
-
-
-
-
-cdef class MasterERAMSE(MasterEraRegressionCriterion):
-    """Mean squared error impurity criterion.
-
-        MSE = var_left + var_right
-    """
-
-    cdef double node_impurity(self) noexcept nogil:
-        """Evaluate the impurity of the current node.
-
-        Evaluate the MSE criterion as impurity of the current node,
-        i.e. the impurity of sample_indices[start:end]. The smaller the impurity the
-        better.
-        """
-        cdef double impurity = 0
-
-        for j in range(0, len(self.era_list)):
-            impurity += self.era_criteria[j].node_impurity()
-
-        if self.num_eras > 0:
-            impurity = impurity / self.num_eras
-
-        return impurity
-
-    cdef double proxy_impurity_improvement(self) noexcept nogil:
-        """Compute a proxy of the impurity reduction.
-
-        This method is used to speed up the search for the best split.
-        It is a proxy quantity such that the split that maximizes this value
-        also maximizes the impurity improvement. It neglects all constant terms
-        of the impurity decrease for a given split.
-
-        The absolute impurity improvement is only computed by the
-        impurity_improvement method once the best split has been found.
-
-        The MSE proxy is derived from
-
-            sum_{i left}(y_i - y_pred_L)^2 + sum_{i right}(y_i - y_pred_R)^2
-            = sum(y_i^2) - n_L * mean_{i left}(y_i)^2 - n_R * mean_{i right}(y_i)^2
-
-        Neglecting constant terms, this gives:
-
-            - 1/n_L * sum_{i left}(y_i)^2 - 1/n_R * sum_{i right}(y_i)^2
-        """
-        cdef double impurity_improvement = 0
-        
-        for j in range(0, len(self.era_list)):
-            impurity_improvement += self.era_criteria[j].proxy_impurity_improvement()
-
-        if self.num_eras > 0:
-            impurity_improvement = impurity_improvement / self.num_eras
-
-        return impurity_improvement
-
-    cdef void children_impurity(self, double* impurity_left,
-                                double* impurity_right) noexcept nogil:
-        """Evaluate the impurity in children nodes.
-
-        i.e. the impurity of the left child (sample_indices[start:pos]) and the
-        impurity the right child (sample_indices[pos:end]).
-        """
-        cdef const DOUBLE_t[:] sample_weight = self.sample_weight
-        cdef const SIZE_t[:] sample_indices = self.sample_indices
-        cdef SIZE_t pos = self.pos
-        cdef SIZE_t start = self.start
-
-        cdef DOUBLE_t y_ik
-
-        cdef double sq_sum_left = 0.0
-        cdef double sq_sum_right
-
-        cdef SIZE_t i
-        cdef SIZE_t p
-        cdef SIZE_t k
-        cdef DOUBLE_t w = 1.0
-
-        for p in range(start, pos):
-            i = sample_indices[p]
-
-            if sample_weight is not None:
-                w = sample_weight[i]
-
-            for k in range(self.n_outputs):
-                y_ik = self.y[i, k]
-                sq_sum_left += w * y_ik * y_ik
-
-        sq_sum_right = self.sq_sum_total - sq_sum_left
-
-        impurity_left[0] = sq_sum_left / self.weighted_n_left
-        impurity_right[0] = sq_sum_right / self.weighted_n_right
-
-        for k in range(self.n_outputs):
-            impurity_left[0] -= (self.sum_left[k] / self.weighted_n_left) ** 2.0
-            impurity_right[0] -= (self.sum_right[k] / self.weighted_n_right) ** 2.0
-
-        impurity_left[0] /= self.n_outputs
-        impurity_right[0] /= self.n_outputs
-
-
-
 cdef class EraRegressionCriterion(Criterion):
     r"""Abstract regression criterion using eras.
     
     Creates a separate regression criterion for each era
     """
 
-    def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples, long[:] eras, int era_num):
+    def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples, long[:] eras):#, int era_num):
         """Initialize parameters for this criterion.
 
         Parameters
@@ -1047,22 +813,36 @@ cdef class EraRegressionCriterion(Criterion):
         self.weighted_n_left = 0.0
         self.weighted_n_right = 0.0
 
-        self.sq_sum_total = 0.0
-
-        self.sum_total = np.zeros(n_outputs, dtype=np.float64)
-        self.sum_left = np.zeros(n_outputs, dtype=np.float64)
-        self.sum_right = np.zeros(n_outputs, dtype=np.float64)
-        
         self.eras = eras
         self.era_list = np.unique(eras)
-        self.era_indices = np.empty(0, dtype=long) 
-        for k in range(0, len(self.eras)):
-            if self.eras[k] == self.era_list[era_num]:
-                self.era_indices = np.append(self.era_indices, k)
+        self.num_eras_float = <double>len(self.era_list)
+        self.num_eras = len(self.era_list)
+        self.era_counts = np.zeros( self.num_eras, dtype=int)
 
-        printf("era indices\n")
-        for k in range(0, len(self.era_indices)):
-            printf("era_index: %d\n", self.era_indices[k])
+        self.sq_sum_total = 0.0
+
+        self.sum_total = np.zeros( (n_outputs, self.num_eras), dtype=np.float64)
+        self.sum_left = np.zeros( (n_outputs, self.num_eras), dtype=np.float64)
+        self.sum_right = np.zeros( (n_outputs, self.num_eras), dtype=np.float64)
+
+        for era_i in range(0, len(self.era_list)):
+            for k in range(0, len(self.eras)):
+                if self.eras[k] == self.era_list[era_i]:
+                    self.era_counts[era_i] += 1
+
+        printf('Era Counts\n')
+        printf('%d\n',self.era_counts[0])
+        printf('%d\n',self.era_counts[1])
+
+        self.era_indices = np.empty( ( self.num_eras, np.max(self.era_counts) ), dtype=int)
+        self.era_indices_shape = np.array([self.num_eras, np.max(self.era_counts)], dtype=int )
+        
+        for era_i in range(self.num_eras):
+            self.j = 0
+            for k in range(0, len(self.eras)):
+                if self.eras[k] == self.era_list[era_i]:
+                    self.era_indices[era_i, self.j] = k
+                    self.j += 1
 
     def __reduce__(self):
         return (type(self), (self.n_outputs, self.n_samples), self.__getstate__())
@@ -1087,52 +867,50 @@ cdef class EraRegressionCriterion(Criterion):
         self.sample_indices = sample_indices
         self.start = start
         self.end = end
-        self.n_node_samples = 0 #end - start
+        self.n_node_samples = end - start
         self.weighted_n_samples = weighted_n_samples
         self.weighted_n_node_samples = 0.
 
-        printf("Init\n")
-        printf("Len y %d, start %d, end %d \n", ( len(self.y), self.start, self.end ) )
-        printf("Len sample indices %d\n",  len(self.sample_indices) )
-        printf("n_node_samples %d\n", self.n_node_samples)
-        printf("--------- \n")
+        #printf("Init\n")
+        #printf("Len y %d, start %d, end %d \n", ( len(self.y), self.start, self.end ) )
+        #printf("Len sample indices %d\n",  len(self.sample_indices) )
+        #printf("n_node_samples %d\n", self.n_node_samples)
+        #printf("--------- \n")
 
         cdef SIZE_t i
         cdef SIZE_t p
         cdef SIZE_t k
+        cdef SIZE_t j
+        cdef SIZE_t era_i
         cdef DOUBLE_t y_ik
         cdef DOUBLE_t w_y_ik
         cdef DOUBLE_t w = 1.0
-        self.sq_sum_total = 0.0
-        memset(&self.sum_total[0], 0, self.n_outputs * sizeof(double))
-
         cdef int era_indicator = 0
+        self.sq_sum_total = 0.0
 
-        for p in range(start, end):
-            i = sample_indices[p]
+        for era_i in range(self.num_eras):
+            memset(&self.sum_total[0, era_i], 0, self.n_outputs * sizeof(double))
 
-            era_indicator = 0
-            for j in range(0, len(self.era_indices)):
-                if self.era_indices[j] == i:
-                    era_indicator = 1
-                    break
+            for p in range(start, end):
+                i = sample_indices[p]
 
-            if era_indicator == 1:
-                self.n_node_samples += 1
-                printf("p: %d\n", p)
-                printf("sample index %d\n", i)
+                era_indicator = 0
+                for j in range(0, self.era_indices_shape[1] ):
+                    if self.era_indices[era_i, j] == i:
+                        era_indicator = 1
+                        break
 
-                if sample_weight is not None:
-                    w = sample_weight[i]
+                if era_indicator == 1:
+                    if sample_weight is not None:
+                        w = sample_weight[i]
 
-                for k in range(self.n_outputs):
-                    y_ik = self.y[i, k]
-                    w_y_ik = w * y_ik
-                    self.sum_total[k] += w_y_ik
-                    self.sq_sum_total += w_y_ik * y_ik
+                    for k in range(self.n_outputs):
+                        y_ik = self.y[i, k]
+                        w_y_ik = w * y_ik
+                        self.sum_total[k, era_i] += w_y_ik
+                        self.sq_sum_total += w_y_ik * y_ik
 
-                self.weighted_n_node_samples += w
-        printf("--------------\n")
+                    self.weighted_n_node_samples += w
 
         # Reset to pos=start
         self.reset()
@@ -1141,8 +919,10 @@ cdef class EraRegressionCriterion(Criterion):
     cdef int reset(self) except -1 nogil:
         """Reset the criterion at pos=start."""
         cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        memset(&self.sum_left[0], 0, n_bytes)
-        memcpy(&self.sum_right[0], &self.sum_total[0], n_bytes)
+
+        for i in range( self.num_eras ):
+            memset(&self.sum_left[0, i], 0, n_bytes)
+            memcpy(&self.sum_right[0, i], &self.sum_total[0, i], n_bytes)
 
         self.weighted_n_left = 0.0
         self.weighted_n_right = self.weighted_n_node_samples
@@ -1152,8 +932,9 @@ cdef class EraRegressionCriterion(Criterion):
     cdef int reverse_reset(self) except -1 nogil:
         """Reset the criterion at pos=end."""
         cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        memset(&self.sum_right[0], 0, n_bytes)
-        memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
+        for i in range( self.num_eras ):
+            memset(&self.sum_right[0, i], 0, n_bytes)
+            memcpy(&self.sum_left[0, i], &self.sum_total[0, i], n_bytes)
 
         self.weighted_n_right = 0.0
         self.weighted_n_left = self.weighted_n_node_samples
@@ -1170,6 +951,7 @@ cdef class EraRegressionCriterion(Criterion):
         cdef SIZE_t i
         cdef SIZE_t p
         cdef SIZE_t k
+        cdef SIZE_t j
         cdef DOUBLE_t w = 1.0
 
         # Update statistics up to new_pos
@@ -1180,59 +962,56 @@ cdef class EraRegressionCriterion(Criterion):
         # sum_left from the direction that require the least amount
         # of computations, i.e. from pos to new_pos or from end to new_pos.
 
-        # printf('era length\n')
-        # printf('%d\n', len( self.era_list) )
-        # printf('--------\n')
-
-        # for j in range(0, len(self.era_list)):
-        #     printf('%d\n', self.era_list[j])
-
         cdef int era_indicator = 0
+        cdef SIZE_t[:] era_indices
 
-        if (new_pos - pos) <= (end - new_pos):
-            for p in range(pos, new_pos):
-                i = sample_indices[p]
+        for era_i in range(0, len(self.era_list)):
+            
+            if (new_pos - pos) <= (end - new_pos):
+                for p in range(pos, new_pos):
+                    i = sample_indices[p]
 
-                era_indicator = 0
-                for j in range(0, len(self.era_indices)):
-                    if self.era_indices[j] == i:
-                        era_indicator = 1
-                        break
+                    era_indicator = 0
+                    for j in range(0, self.era_indices_shape[1]):
+                        if self.era_indices[era_i, j] == i:
+                            era_indicator = 1
+                            break
 
-                if era_indicator == 1:
-                    if sample_weight is not None:
-                        w = sample_weight[i]
+                    if era_indicator == 1:
+                        if sample_weight is not None:
+                            w = sample_weight[i]
 
-                    for k in range(self.n_outputs):
-                        self.sum_left[k] += w * self.y[i, k]
+                        for k in range(self.n_outputs):
+                            self.sum_left[k, era_i] += w * self.y[i, k]
 
-                    self.weighted_n_left += w
-        else:
-            self.reverse_reset()
+                        self.weighted_n_left += w
+            else:
+                self.reverse_reset()
 
-            for p in range(end - 1, new_pos - 1, -1):
-                i = sample_indices[p]
+                for p in range(end - 1, new_pos - 1, -1):
+                    i = sample_indices[p]
 
-                era_indicator = 0
-                for j in range(0, len(self.era_indices)):
-                    if self.era_indices[j] == i:
-                        era_indicator = 1
-                        break
+                    era_indicator = 0
+                    for j in range(0, len(era_indices)):
+                        if era_indices[j] == i:
+                            era_indicator = 1
+                            break
 
-                if era_indicator == 1:
+                    if era_indicator == 1:
 
-                    if sample_weight is not None:
-                        w = sample_weight[i]
+                        if sample_weight is not None:
+                            w = sample_weight[i]
 
-                    for k in range(self.n_outputs):
-                        self.sum_left[k] -= w * self.y[i, k]
+                        for k in range(self.n_outputs):
+                            self.sum_left[k, era_i] -= w * self.y[i, k]
 
-                    self.weighted_n_left -= w
+                        self.weighted_n_left -= w
 
-        self.weighted_n_right = (self.weighted_n_node_samples -
-                                 self.weighted_n_left)
-        for k in range(self.n_outputs):
-            self.sum_right[k] = self.sum_total[k] - self.sum_left[k]
+            for k in range(self.n_outputs):
+                self.sum_right[k, era_i] = self.sum_total[k, era_i] - self.sum_left[k, era_i]
+        
+        self.weighted_n_right = (self.weighted_n_node_samples - self.weighted_n_left)
+        
 
         self.pos = new_pos
         return 0
@@ -1240,19 +1019,19 @@ cdef class EraRegressionCriterion(Criterion):
     cdef double node_impurity(self) noexcept nogil:
         pass
 
-    cdef void children_impurity(self, double* impurity_left,
-                                double* impurity_right) noexcept nogil:
+    cdef void children_impurity(self, double* impurity_left, double* impurity_right) noexcept nogil:
         pass
 
     cdef void node_value(self, double* dest) noexcept nogil:
         """Compute the node value of sample_indices[start:end] into dest."""
         cdef SIZE_t k
+        cdef SIZE_t era_i
 
         for k in range(self.n_outputs):
-            dest[k] = self.sum_total[k] / self.weighted_n_node_samples
-
-
-
+            dest[k] = 0.0
+            for era_i in range(len(self.era_list)):
+                dest[k] += self.sum_total[k, era_i]
+            dest[k] /= self.weighted_n_node_samples
 
 cdef class ERAMSE(EraRegressionCriterion):
     """Mean squared error impurity criterion.
@@ -1269,10 +1048,15 @@ cdef class ERAMSE(EraRegressionCriterion):
         """
         cdef double impurity
         cdef SIZE_t k
+        cdef SIZE_t era_i
+        cdef double sum_total_helper
 
         impurity = self.sq_sum_total / self.weighted_n_node_samples
         for k in range(self.n_outputs):
-            impurity -= (self.sum_total[k] / self.weighted_n_node_samples)**2.0
+            sum_total_helper = 0.0
+            for era_i in range(len(self.era_list)):
+                sum_total_helper += self.sum_total[k, era_i]
+            impurity -= (sum_total_helper / self.weighted_n_node_samples)**2.0
 
         return impurity / self.n_outputs
 
@@ -1297,15 +1081,28 @@ cdef class ERAMSE(EraRegressionCriterion):
             - 1/n_L * sum_{i left}(y_i)^2 - 1/n_R * sum_{i right}(y_i)^2
         """
         cdef SIZE_t k
+        cdef SIZE_t era_i
         cdef double proxy_impurity_left = 0.0
         cdef double proxy_impurity_right = 0.0
+        cdef double sum_left_helper
+        cdef double sum_right_helper
+        cdef double impurity_gains = 0.0
 
         for k in range(self.n_outputs):
-            proxy_impurity_left += self.sum_left[k] * self.sum_left[k]
-            proxy_impurity_right += self.sum_right[k] * self.sum_right[k]
+            sum_left_helper = 0.0
+            sum_right_helper = 0.0
+            for era_i in range(self.num_eras):
+                sum_left_helper += self.sum_left[k, era_i]
+                sum_right_helper += self.sum_right[k, era_i]
+            sum_left_helper /= self.num_eras_float
+            sum_right_helper /= self.num_eras_float
+                
+            proxy_impurity_left = sum_left_helper * sum_left_helper
+            proxy_impurity_right = sum_right_helper * sum_right_helper
 
-        return (proxy_impurity_left / self.weighted_n_left +
-                proxy_impurity_right / self.weighted_n_right)
+            impurity_gains += (proxy_impurity_left / self.weighted_n_left + proxy_impurity_right / self.weighted_n_right)
+
+        return impurity_gains / self.num_eras_float
 
     cdef void children_impurity(self, double* impurity_left,
                                 double* impurity_right) noexcept nogil:
@@ -1327,27 +1124,21 @@ cdef class ERAMSE(EraRegressionCriterion):
         cdef SIZE_t i
         cdef SIZE_t p
         cdef SIZE_t k
+        cdef SIZE_t era_i
         cdef DOUBLE_t w = 1.0
 
-        cdef int era_indicator = 0
+        cdef double sum_left_helper
+        cdef double sum_right_helper
 
         for p in range(start, pos):
             i = sample_indices[p]
 
-            era_indicator = 0
-            for j in range(0, len(self.era_indices)):
-                if self.era_indices[j] == i:
-                    era_indicator = 1
-                    break
+            if sample_weight is not None:
+                w = sample_weight[i]
 
-            if era_indicator == 1:
-
-                if sample_weight is not None:
-                    w = sample_weight[i]
-
-                for k in range(self.n_outputs):
-                    y_ik = self.y[i, k]
-                    sq_sum_left += w * y_ik * y_ik
+            for k in range(self.n_outputs):
+                y_ik = self.y[i, k]
+                sq_sum_left += w * y_ik * y_ik
 
         sq_sum_right = self.sq_sum_total - sq_sum_left
 
@@ -1355,8 +1146,17 @@ cdef class ERAMSE(EraRegressionCriterion):
         impurity_right[0] = sq_sum_right / self.weighted_n_right
 
         for k in range(self.n_outputs):
-            impurity_left[0] -= (self.sum_left[k] / self.weighted_n_left) ** 2.0
-            impurity_right[0] -= (self.sum_right[k] / self.weighted_n_right) ** 2.0
+
+            sum_left_helper = 0.0
+            sum_right_helper = 0.0
+            for era_i in range(len(self.era_list)):
+                sum_left_helper += self.sum_left[k, era_i]
+                sum_right_helper += self.sum_right[k, era_i]
+            sum_left_helper /= self.num_eras_float
+            sum_right_helper /= self.num_eras_float
+
+            impurity_left[0] -= (sum_left_helper / self.weighted_n_left) ** 2.0
+            impurity_right[0] -= (sum_right_helper / self.weighted_n_right) ** 2.0
 
         impurity_left[0] /= self.n_outputs
         impurity_right[0] /= self.n_outputs

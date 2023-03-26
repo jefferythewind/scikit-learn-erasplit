@@ -95,30 +95,19 @@ cdef class EraRegressionCriterion(Criterion):
     """Abstract regression criterion."""
 
     cdef double sq_sum_total
-    cdef const long[:] eras
-    cdef const long[:] era_list
-    cdef const long[:] era_indices
+    cdef long[:] eras
+    cdef long[:] era_list
+    cdef long[:,:] era_indices
+    cdef double num_eras_float
+    cdef int num_eras
+    cdef long[:] era_indices_shape
+    cdef long[:] era_counts
+    cdef int j
 
-    cdef double[::1] sum_total   # The sum of w*y.
-    cdef double[::1] sum_left    # Same as above, but for the left side of the split
-    cdef double[::1] sum_right   # Same as above, but for the right side of the split
+    cdef double[::1, :] sum_total   # The sum of w*y.
+    cdef double[::1, :] sum_left    # Same as above, but for the left side of the split
+    cdef double[::1, :] sum_right   # Same as above, but for the right side of the split
 
 cdef class ERAMSE(EraRegressionCriterion):
     """Abstract regression criterion."""
-    pass
-
-cdef class MasterEraRegressionCriterion(Criterion):
-    """Abstract regression criterion."""
-
-    cdef double sq_sum_total
-    cdef const long[:] eras
-    cdef const long[:] era_list
-    cdef ERAMSE[:] era_criteria
-    cdef double num_eras
-
-    cdef double[::1] sum_total   # The sum of w*y.
-    cdef double[::1] sum_left    # Same as above, but for the left side of the split
-    cdef double[::1] sum_right   # Same as above, but for the right side of the split
-
-cdef class MasterERAMSE(MasterEraRegressionCriterion):
     pass

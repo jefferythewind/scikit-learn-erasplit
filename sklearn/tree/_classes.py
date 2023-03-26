@@ -74,7 +74,7 @@ CRITERIA_REG = {
     "friedman_mse": _criterion.FriedmanMSE,
     "absolute_error": _criterion.MAE,
     "poisson": _criterion.Poisson,
-    "era_squared_error": _criterion.MasterERAMSE
+    "era_squared_error": _criterion.ERAMSE
 }
 
 DENSE_SPLITTERS = {"best": _splitter.BestSplitter, "random": _splitter.RandomSplitter}
