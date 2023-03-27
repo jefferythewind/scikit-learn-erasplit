@@ -94,7 +94,7 @@ cdef class RegressionCriterion(Criterion):
 cdef class EraRegressionCriterion(Criterion):
     """Abstract regression criterion."""
 
-    cdef double sq_sum_total
+    cdef double[:] sq_sum_total
     cdef long[:] eras
     cdef long[:] era_list
     cdef long[:,:] era_indices
@@ -104,9 +104,13 @@ cdef class EraRegressionCriterion(Criterion):
     cdef long[:] era_counts
     cdef int j
 
-    cdef double[::1, :] sum_total   # The sum of w*y.
-    cdef double[::1, :] sum_left    # Same as above, but for the left side of the split
-    cdef double[::1, :] sum_right   # Same as above, but for the right side of the split
+    cdef double[:, ::1] sum_total   # The sum of w*y.
+    cdef double[:, ::1] sum_left    # Same as above, but for the left side of the split
+    cdef double[:, ::1] sum_right   # Same as above, but for the right side of the split
+
+    cdef double[:] weighted_n_node_samples_era  # Weighted number of samples in the node
+    cdef double[:] weighted_n_left_era          # Weighted number of samples in the left node
+    cdef double[:] weighted_n_right_era         # Weighted number of samples in the right node
 
 cdef class ERAMSE(EraRegressionCriterion):
     """Abstract regression criterion."""
