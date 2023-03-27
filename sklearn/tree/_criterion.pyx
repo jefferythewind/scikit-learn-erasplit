@@ -891,6 +891,8 @@ cdef class EraRegressionCriterion(Criterion):
         cdef DOUBLE_t w_y_ik
         cdef DOUBLE_t w = 1.0
         cdef int era_indicator = 0
+        self.weighted_n_node_samples = 0.
+
         
 
         for era_i in range(self.num_eras):
@@ -918,6 +920,7 @@ cdef class EraRegressionCriterion(Criterion):
                         self.sq_sum_total[era_i] += w_y_ik * y_ik
 
                     self.weighted_n_node_samples_era[era_i] += w
+                    self.weighted_n_node_samples += w
 
         # Reset to pos=start
         self.reset()
@@ -934,6 +937,8 @@ cdef class EraRegressionCriterion(Criterion):
 
             self.weighted_n_left_era[i] = 0.0
             self.weighted_n_right_era[i] = self.weighted_n_node_samples_era[i]
+        self.weighted_n_left = 0.
+        self.weighted_n_right = self.weighted_n_node_samples
         self.pos = self.start
         return 0
 
@@ -949,6 +954,8 @@ cdef class EraRegressionCriterion(Criterion):
             self.weighted_n_right_era[i] = 0.0
             self.weighted_n_left_era[i] = self.weighted_n_node_samples_era[i]
 
+        self.weighted_n_right = 0.0
+        self.weighted_n_left = self.weighted_n_node_samples
         self.pos = self.end
         return 0
 
@@ -997,6 +1004,8 @@ cdef class EraRegressionCriterion(Criterion):
                             self.sum_left[era_i, k] += w * self.y[i, k]
 
                         self.weighted_n_left_era[era_i] += w
+                        self.weighted_n_left += w
+                        
             else:
                 self.reverse_reset()
 
@@ -1018,12 +1027,14 @@ cdef class EraRegressionCriterion(Criterion):
                             self.sum_left[era_i, k] -= w * self.y[i, k]
 
                         self.weighted_n_left_era[era_i] -= w
+                        self.weighted_n_left -= w
 
             for k in range(self.n_outputs):
                 self.sum_right[era_i, k] = self.sum_total[era_i, k] - self.sum_left[era_i, k]
         
             self.weighted_n_right_era[era_i] = (self.weighted_n_node_samples_era[era_i] - self.weighted_n_left_era[era_i])
         
+        self.weighted_n_right = self.weighted_n_node_samples - self.weighted_n_left
 
         self.pos = new_pos
         return 0
@@ -1039,13 +1050,16 @@ cdef class EraRegressionCriterion(Criterion):
         cdef SIZE_t k
         cdef SIZE_t era_i
 
-        cdef double node_val
+        cdef double s_value
+        cdef double w_n
 
         for k in range(self.n_outputs):
-            node_val = 0.0
+            s_value = 0.0
+            w_n = 0.0
             for era_i in range(self.num_eras):
-                node_val += self.sum_total[era_i, k] * self.weighted_n_node_samples_era[era_i]
-            dest[k] = node_val / self.num_eras
+                s_value += self.sum_total[era_i, k]
+                w_n += self.weighted_n_node_samples_era[era_i]
+            dest[k] = s_value / w_n
 
 cdef class ERAMSE(EraRegressionCriterion):
     """Mean squared error impurity criterion.
