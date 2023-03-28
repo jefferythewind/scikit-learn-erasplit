@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 
 np.random.seed(1)
 
-era_samples = 20
-num_eras = 2
+era_samples = 32
+num_eras = 6
 
 Xs = []
 Ys = []
@@ -59,14 +59,13 @@ for max_depth, n_est in configs:
 
     # Predict
     y_1 = regr_1.predict(X_test)
-    y_0 = np.sin(X_test)
 
     # Plot the results
-    mse = np.round(np.mean((y_1 - y_0)**2),3)
+    mse = np.round(np.mean((y_1 - y_test)**2),3)
     mses.append(mse)
     print(mse)
     
-    plt.plot(X_test, y_1, label=f"depth={max_depth}, n_est={n_est}, mse={mse}", linewidth=2)
+    plt.plot(X_test, y_test, label=f"depth={max_depth}, n_est={n_est}, mse={mse}", linewidth=2)
 plt.xlabel("data")
 plt.ylabel("target")
 plt.title("Decision Tree Regression")
