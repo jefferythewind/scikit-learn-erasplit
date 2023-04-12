@@ -15,12 +15,14 @@ from ._weight_boosting import AdaBoostClassifier
 from ._weight_boosting import AdaBoostRegressor
 from ._gb import GradientBoostingClassifier
 from ._gb import GradientBoostingRegressor
+from ._gb import EraGradientBoostingRegressor
 from ._voting import VotingClassifier
 from ._voting import VotingRegressor
 from ._stacking import StackingClassifier
 from ._stacking import StackingRegressor
 from ._hist_gradient_boosting.gradient_boosting import (
     HistGradientBoostingRegressor,
+    EraHistGradientBoostingRegressor,
     HistGradientBoostingClassifier,
 )
 
@@ -36,6 +38,7 @@ __all__ = [
     "IsolationForest",
     "GradientBoostingClassifier",
     "GradientBoostingRegressor",
+    "EraGradientBoostingRegressor",
     "AdaBoostClassifier",
     "AdaBoostRegressor",
     "VotingClassifier",
@@ -44,4 +47,5 @@ __all__ = [
     "StackingRegressor",
     "HistGradientBoostingClassifier",
     "HistGradientBoostingRegressor",
+    "EraHistGradientBoostingRegressor",
 ]

@@ -223,7 +223,9 @@ extension_config = {
     "ensemble._hist_gradient_boosting": [
         {"sources": ["_gradient_boosting.pyx"], "include_np": True},
         {"sources": ["histogram.pyx"], "include_np": True},
+        {"sources": ["era_histogram.pyx"], "include_np": True},
         {"sources": ["splitting.pyx"], "include_np": True},
+        {"sources": ["era_splitting.pyx"], "include_np": True},
         {"sources": ["_binning.pyx"], "include_np": True},
         {"sources": ["_predictor.pyx"], "include_np": True},
         {"sources": ["_bitset.pyx"], "include_np": True},

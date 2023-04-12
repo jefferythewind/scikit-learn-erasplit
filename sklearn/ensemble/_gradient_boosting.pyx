@@ -186,6 +186,7 @@ def predict_stages(
     cdef Py_ssize_t n_estimators = estimators.shape[0]
     cdef Py_ssize_t K = estimators.shape[1]
     cdef Tree tree
+    cdef double shrinkage_rate = 1.0
 
     if issparse(X):
         if X.format != 'csr':
@@ -199,6 +200,7 @@ def predict_stages(
             raise ValueError(f"X should be C-ordered np.ndarray, got {type(X)}")
 
         for i in range(n_estimators):
+            #print("round ", i, " shrinkage rate: ", shrinkage_rate, "\n")
             for k in range(K):
                 tree = estimators[i, k].tree_
 
@@ -209,13 +211,14 @@ def predict_stages(
                     X=X,
                     root_node=tree.nodes,
                     value=tree.value,
-                    scale=scale,
+                    scale=shrinkage_rate,
                     k=k,
                     n_samples=X.shape[0],
                     n_features=X.shape[1],
                     out=out
                 )
                 ## out[:, k] += scale * tree.predict(X).ravel()
+            shrinkage_rate *= scale
 
 
 def predict_stage(

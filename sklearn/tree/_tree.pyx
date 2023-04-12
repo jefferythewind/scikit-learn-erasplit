@@ -35,6 +35,8 @@ from scipy.sparse import csr_matrix
 from ._utils cimport safe_realloc
 from ._utils cimport sizet_ptr_to_ndarray
 
+from libc.stdio cimport printf
+
 cdef extern from "numpy/arrayobject.h":
     object PyArray_NewFromDescr(PyTypeObject* subtype, cnp.dtype descr,
                                 int nd, cnp.npy_intp* dims,
@@ -164,7 +166,8 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
         const DOUBLE_t[:] sample_weight=None,
     ):
         """Build a decision tree from the training set (X, y)."""
-
+        #print("--------------\n")
+        #print("Depth First Tree Builder\n")
         # check input
         X, y, sample_weight = self._check_input(X, y, sample_weight)
 
@@ -232,6 +235,8 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
                 impurity = stack_record.impurity
                 n_constant_features = stack_record.n_constant_features
 
+                #printf("start: %d, end: %d, depth: %d\n", start, end, depth)
+
                 n_node_samples = end - start
                 splitter.node_reset(start, end, &weighted_n_node_samples)
 
@@ -243,7 +248,7 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
                 if first:
                     impurity = splitter.node_impurity()
                     first = 0
-
+                
                 # impurity == 0 with tolerance due to rounding errors
                 is_leaf = is_leaf or impurity <= EPSILON
 
@@ -252,9 +257,8 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
                     # If EPSILON=0 in the below comparison, float precision
                     # issues stop splitting, producing trees that are
                     # dissimilar to v0.18
-                    is_leaf = (is_leaf or split.pos >= end or
-                               (split.improvement + EPSILON <
-                                min_impurity_decrease))
+                    #printf("split improvement %.5f, threshold: %.5f\n", split.improvement, split.threshold)
+                    is_leaf = (is_leaf or split.pos >= end or (split.improvement + EPSILON < min_impurity_decrease))
 
                 node_id = tree._add_node(parent, is_left, is_leaf, split.feature,
                                          split.threshold, impurity, n_node_samples,
@@ -360,7 +364,8 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         const DOUBLE_t[:] sample_weight=None,
     ):
         """Build a decision tree from the training set (X, y)."""
-
+        #print("--------------\n")
+        #print("Best First Tree Builder\n")
         # check input
         X, y, sample_weight = self._check_input(X, y, sample_weight)
 

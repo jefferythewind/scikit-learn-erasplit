@@ -26,6 +26,8 @@ from ._utils cimport rand_int
 from ._utils cimport rand_uniform
 from ._utils cimport RAND_R_MAX
 
+from libc.stdio cimport printf
+
 cdef double INFINITY = np.inf
 
 # Mitigate precision differences between 32 bit and 64 bit
@@ -167,8 +169,7 @@ cdef class Splitter:
         self.sample_weight = sample_weight
         return 0
 
-    cdef int node_reset(self, SIZE_t start, SIZE_t end,
-                        double* weighted_n_node_samples) except -1 nogil:
+    cdef int node_reset(self, SIZE_t start, SIZE_t end, double* weighted_n_node_samples) except -1 nogil:
         """Reset splitter on node samples[start:end].
 
         Returns -1 in case of failure to allocate memory (and raise MemoryError)
@@ -186,7 +187,7 @@ cdef class Splitter:
 
         self.start = start
         self.end = end
-
+        #printf("resetting node\n")
         self.criterion.init(
             self.y,
             self.sample_weight,
@@ -365,9 +366,10 @@ cdef inline int node_split_best(
             if current_proxy_improvement > best_proxy_improvement:
                 best_proxy_improvement = current_proxy_improvement
                 # sum of halves is used to avoid infinite value
-                current_split.threshold = (
-                    feature_values[p_prev] / 2.0 + feature_values[p] / 2.0
-                )
+                #current_split.threshold = (
+                #    feature_values[p_prev] / 2.0 + feature_values[p] / 2.0
+                #)
+                current_split.threshold = feature_values[p]
 
                 if (
                     current_split.threshold == feature_values[p] or
@@ -391,11 +393,12 @@ cdef inline int node_split_best(
         criterion.children_impurity(
             &best_split.impurity_left, &best_split.impurity_right
         )
-        best_split.improvement = criterion.impurity_improvement(
-            impurity,
-            best_split.impurity_left,
-            best_split.impurity_right
-        )
+        best_split.improvement = best_proxy_improvement
+        #best_split.improvement = criterion.impurity_improvement(
+        #    impurity,
+        #    best_split.impurity_left,
+        #    best_split.impurity_right
+        #)
 
     # Respect invariant for constant features: the original order of
     # element in features[:n_known_constants] must be preserved for sibling
@@ -1252,6 +1255,7 @@ cdef class BestSplitter(Splitter):
 
     cdef int node_split(self, double impurity, SplitRecord* split,
                         SIZE_t* n_constant_features) except -1 nogil:
+        #printf("BestSplitter Class Node Split\n")
         return node_split_best(
             self,
             self.partitioner,

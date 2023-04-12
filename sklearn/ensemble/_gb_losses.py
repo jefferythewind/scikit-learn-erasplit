@@ -128,7 +128,6 @@ class LossFunction(metaclass=ABCMeta):
                 raw_predictions[:, k],
                 sample_weight,
             )
-
         # update predictions (both in-bag and out-of-bag)
         raw_predictions[:, k] += learning_rate * tree.value[:, 0, 0].take(
             terminal_regions, axis=0
@@ -284,6 +283,7 @@ class LeastSquaresError(RegressionLossFunction):
         k : int, default=0
             The index of the estimator being updated.
         """
+        #print('updating raw preds 2')
         # update predictions
         raw_predictions[:, k] += learning_rate * tree.predict(X).ravel()
 

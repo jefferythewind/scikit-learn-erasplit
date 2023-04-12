@@ -679,9 +679,10 @@ class BaseEraDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         check_is_fitted(self)
         return self.tree_.n_leaves
 
-    def fit(self, X, y, eras, sample_weight=None, check_input=True):
+    def fit(self, X, y, eras, boltzmann_alpha, sample_weight=None, check_input=True):
         self._validate_params()
         random_state = check_random_state(self.random_state)
+        #print('fitting era decision tree...\n')
 
         if check_input:
             # Need to validate separately here.
@@ -834,7 +835,7 @@ class BaseEraDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
                 )
             else:
                 if self.criterion == 'era_squared_error':
-                    criterion = CRITERIA_REG[self.criterion](self.n_outputs_, n_samples, eras)
+                    criterion = CRITERIA_REG[self.criterion](self.n_outputs_, n_samples, eras, boltzmann_alpha)
                 else:
                     criterion = CRITERIA_REG[self.criterion](self.n_outputs_, n_samples)
         else:
@@ -866,6 +867,7 @@ class BaseEraDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
 
         # Use BestFirst if max_leaf_nodes given; use DepthFirst otherwise
         if max_leaf_nodes < 0:
+            #print('using depth first builder')
             builder = DepthFirstTreeBuilder(
                 splitter,
                 min_samples_split,
@@ -1993,7 +1995,7 @@ class EraDecisionTreeRegressor(RegressorMixin, BaseEraDecisionTree):
     """
 
     _parameter_constraints: dict = {
-        **BaseDecisionTree._parameter_constraints,
+        **BaseEraDecisionTree._parameter_constraints,
         "criterion": [
             StrOptions({"squared_error", "friedman_mse", "absolute_error", "poisson","era_squared_error"}),
             Hidden(Criterion),
@@ -2029,7 +2031,7 @@ class EraDecisionTreeRegressor(RegressorMixin, BaseEraDecisionTree):
             ccp_alpha=ccp_alpha,
         )
 
-    def fit(self, X, y, eras, sample_weight=None, check_input=True):
+    def fit(self, X, y, eras, boltzmann_alpha, sample_weight=None, check_input=True):
         """Build a decision tree regressor from the training set (X, y).
 
         Parameters
@@ -2062,6 +2064,7 @@ class EraDecisionTreeRegressor(RegressorMixin, BaseEraDecisionTree):
             X,
             y,
             eras,
+            boltzmann_alpha,
             sample_weight=sample_weight,
             check_input=check_input,
         )
