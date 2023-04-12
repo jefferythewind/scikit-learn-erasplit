@@ -11,7 +11,7 @@ cimport cython
 from cython.parallel import prange
 import numpy as np
 from libc.stdlib cimport malloc, free, qsort
-from libc.string cimport memcpy
+from libc.string cimport memcpy, memset
 from numpy.math cimport INFINITY
 
 from .common cimport X_BINNED_DTYPE_C
@@ -49,8 +49,6 @@ cdef struct split_info_struct:
     #Y_DTYPE_C [:] era_sum_hessian_right
     #unsigned int [:] era_n_samples_left
     #unsigned int [:] era_n_samples_right
-    #Y_DTYPE_C [:] era_values_left
-    #Y_DTYPE_C [:] era_values_right
 
 
 # used in categorical splits for sorting categories by increasing values of
@@ -58,7 +56,6 @@ cdef struct split_info_struct:
 cdef struct categorical_info:
     X_BINNED_DTYPE_C bin_idx
     Y_DTYPE_C value
-
 
 class SplitInfo:
     """Pure data class to store information about a potential split.
@@ -120,9 +117,7 @@ class SplitInfo:
         #era_sum_gradient_right, 
         #era_sum_hessian_right, 
         #era_n_samples_left,
-        #era_n_samples_right, 
-        #era_values_left, 
-        #era_values_right,
+        #era_n_samples_right
     ):
         self.gain = gain
         self.feature_idx = feature_idx
@@ -145,8 +140,6 @@ class SplitInfo:
         #self.era_sum_hessian_right = era_sum_hessian_right
         #self.era_n_samples_left = era_n_samples_left
         #self.era_n_samples_right = era_n_samples_right
-        #self.era_values_left = era_values_left
-        #self.era_values_right = era_values_right
 
 
 @cython.final
@@ -461,7 +454,6 @@ cdef class Splitter:
             const Y_DTYPE_C sum_hessians,
             const Y_DTYPE_C [:] era_sum_hessians,
             const Y_DTYPE_C value,
-            const Y_DTYPE_C [:] era_values,
             const int num_eras,
             const Y_DTYPE_C lower_bound=-INFINITY,
             const Y_DTYPE_C upper_bound=INFINITY,
@@ -576,13 +568,13 @@ cdef class Splitter:
                     sum_hessians,
                     era_sum_hessians,
                     value,
-                    era_values,
                     num_eras,
                     monotonic_cst[feature_idx],
                     lower_bound, 
-                    upper_bound, 
-                    &split_infos[split_info_idx]
+                    upper_bound,
+                    &split_infos[split_info_idx],
                 )
+                    
 
                     #if has_missing_values[feature_idx]:
                         # We need to explore both directions to check whether
@@ -622,8 +614,6 @@ cdef class Splitter:
             #split_info.era_sum_hessian_right, 
             #split_info.era_n_samples_left,
             #split_info.era_n_samples_right, 
-            #split_info.era_values_left, 
-            #split_info.era_values_right,
         )
         # Only set bitset if the split is categorical
         if split_info.is_categorical:
@@ -659,12 +649,11 @@ cdef class Splitter:
             Y_DTYPE_C sum_hessians,
             const Y_DTYPE_C [:] era_sum_hessians,
             Y_DTYPE_C value,
-            const Y_DTYPE_C [:] era_values,
             unsigned int num_eras,
             signed char monotonic_cst,
             Y_DTYPE_C lower_bound,
             Y_DTYPE_C upper_bound,
-            split_info_struct * split_info # OUT
+            split_info_struct * split_info, # OUT
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -683,9 +672,9 @@ cdef class Splitter:
             unsigned int bin_idx
             unsigned int era_idx
             unsigned int n_samples_left
-            unsigned int [:] era_n_samples_left
+            unsigned int * era_n_samples_left = <unsigned int *> malloc( num_eras_ * sizeof(unsigned int) )
             unsigned int n_samples_right
-            unsigned int [:] era_n_samples_right
+            unsigned int * era_n_samples_right = <unsigned int *> malloc( num_eras_ * sizeof(unsigned int) )
             unsigned int n_samples_ = n_samples
             unsigned int [:] era_n_samples_ = era_n_samples
             unsigned int num_eras_ = num_eras
@@ -695,34 +684,29 @@ cdef class Splitter:
             # would go to the right child.
             unsigned int end = self.n_bins_non_missing[feature_idx] - 1 + has_missing_values
             Y_DTYPE_C sum_hessian_left
-            Y_DTYPE_C [:] era_sum_hessian_left
+            Y_DTYPE_C * era_sum_hessian_left = <Y_DTYPE_C *> malloc( num_eras_ * sizeof(Y_DTYPE_C) )
             Y_DTYPE_C sum_hessian_right
-            Y_DTYPE_C [:] era_sum_hessian_right
+            Y_DTYPE_C * era_sum_hessian_right = <Y_DTYPE_C *> malloc( num_eras_ * sizeof(Y_DTYPE_C) )
             Y_DTYPE_C sum_gradient_left
-            Y_DTYPE_C [:] era_sum_gradient_left
+            Y_DTYPE_C * era_sum_gradient_left = <Y_DTYPE_C *> malloc( num_eras_ * sizeof(Y_DTYPE_C) )
             Y_DTYPE_C sum_gradient_right
-            Y_DTYPE_C [:] era_sum_gradient_right
+            Y_DTYPE_C * era_sum_gradient_right = <Y_DTYPE_C *> malloc( num_eras_ * sizeof(Y_DTYPE_C) )
             Y_DTYPE_C loss_current_node
-            Y_DTYPE_C [:] era_loss_current_node
+            Y_DTYPE_C * era_loss_current_node = <Y_DTYPE_C *> malloc( num_eras_ * sizeof(Y_DTYPE_C) )
             Y_DTYPE_C gain
             Y_DTYPE_C era_gain
             unsigned char found_better_split = False
 
             Y_DTYPE_C best_sum_hessian_left
-            Y_DTYPE_C [:] era_best_sum_hessian_left
-            Y_DTYPE_C [:] era_best_sum_hessian_right
+            #Y_DTYPE_C [:] era_best_sum_hessian_left
+            #Y_DTYPE_C [:] era_best_sum_hessian_right
             Y_DTYPE_C best_sum_gradient_left
-            Y_DTYPE_C [:] era_best_sum_gradient_left
-            Y_DTYPE_C [:] era_best_sum_gradient_right
+            #Y_DTYPE_C [:] era_best_sum_gradient_left
+            #Y_DTYPE_C [:] era_best_sum_gradient_right
             unsigned int best_bin_idx
             unsigned int best_n_samples_left
-            unsigned int [:] era_best_n_samples_left
-            unsigned int [:] era_best_n_samples_right
-
-            Y_DTYPE_C [:] era_values_left
-            Y_DTYPE_C [:] era_values_right
-
-
+            #unsigned int [:] era_best_n_samples_left
+            #unsigned int [:] era_best_n_samples_right
 
             Y_DTYPE_C best_gain = -1
 
@@ -738,9 +722,6 @@ cdef class Splitter:
             era_sum_gradient_right[era_idx] = 0.
             era_sum_hessian_right[era_idx] = 0.
             era_n_samples_right[era_idx] = 0
-            era_loss_current_node[era_idx] = _loss_from_value( era_values[era_idx], era_sum_gradients[era_idx] )
-            era_values_left[era_idx] = 0.
-            era_values_right[era_idx] = 0.
 
         for bin_idx in range(end):
             gain = 0.
@@ -770,7 +751,16 @@ cdef class Splitter:
                     era_sum_hessian_left[era_idx],
                     era_sum_gradient_right[era_idx], 
                     era_sum_hessian_right[era_idx],
-                    era_loss_current_node[era_idx],
+                    _loss_from_value( 
+                        compute_node_value(
+                            era_sum_gradient_left[era_idx], 
+                            era_sum_hessian_left[era_idx],
+                            lower_bound, 
+                            upper_bound, 
+                            self.l2_regularization
+                        ), 
+                        era_sum_gradients[era_idx] 
+                    ),
                     monotonic_cst,
                     lower_bound,
                     upper_bound,
@@ -800,12 +790,12 @@ cdef class Splitter:
                 best_sum_gradient_left = sum_gradient_left
                 best_sum_hessian_left = sum_hessian_left
                 best_n_samples_left = n_samples_left
-                era_best_sum_gradient_left = era_sum_gradient_left
-                era_best_sum_hessian_left = era_sum_hessian_left
-                era_best_n_samples_left = era_n_samples_left
-                era_best_sum_gradient_right = era_sum_gradient_right
-                era_best_sum_hessian_right = era_sum_hessian_right
-                era_best_n_samples_right = era_n_samples_right
+                #era_best_sum_gradient_left = era_sum_gradient_left
+                #era_best_sum_hessian_left = era_sum_hessian_left
+                #era_best_n_samples_left = era_n_samples_left
+                #era_best_sum_gradient_right = era_sum_gradient_right
+                #era_best_sum_hessian_right = era_sum_hessian_right
+                #era_best_n_samples_right = era_n_samples_right
 
         if found_better_split:
             split_info.gain = best_gain
@@ -835,28 +825,6 @@ cdef class Splitter:
             split_info.value_right = compute_node_value(
                 split_info.sum_gradient_right, split_info.sum_hessian_right,
                 lower_bound, upper_bound, self.l2_regularization)
-
-            #for era_idx in range(num_eras_):
-
-                # We recompute best values here but it's cheap
-            #    era_values_left[era_idx] = compute_node_value(
-            #        split_info.era_sum_gradient_left[era_idx], 
-            #        split_info.era_sum_hessian_left[era_idx],
-            #        lower_bound, 
-            #        upper_bound, 
-            #        self.l2_regularization
-            #    )
-
-            #    era_values_right[era_idx] = compute_node_value(
-            #        split_info.era_sum_gradient_right[era_idx], 
-            #        split_info.era_sum_hessian_right[era_idx],
-            #        lower_bound, 
-            #        upper_bound, 
-            #        self.l2_regularization
-            #    )
-            
-            #split_info.era_values_left = era_values_left
-            #split_info.era_values_right = era_values_right
 
     cdef void _find_best_bin_to_split_right_to_left(
             self,

@@ -108,11 +108,11 @@ class TreeNode:
     partition_start = 0
     partition_stop = 0
 
-    def __init__(self, depth, sample_indices, sum_gradients, sum_hessians, era_sample_indices, era_sum_gradients, era_sum_hessians, value=None, era_values=None):
+    def __init__(self, depth, sample_indices, sum_gradients, sum_hessians, era_sample_indices, era_sum_gradients, era_sum_hessians, value=None):
         self.depth = depth
         self.sample_indices = sample_indices
         self.n_samples = sample_indices.shape[0]
-        self.era_n_samples = [ x.shape[0] for x in era_sample_indices ]
+        self.era_n_samples = np.array([ x.shape[0] for x in era_sample_indices ], dtype=np.uint32)
         self.sum_gradients = sum_gradients
         self.sum_hessians = sum_hessians
         self.value = value
@@ -124,7 +124,6 @@ class TreeNode:
         self.era_sample_indices = era_sample_indices
         self.era_sum_gradients = era_sum_gradients
         self.era_sum_hessians = era_sum_hessians
-        self.era_values = era_values
         self.num_eras = len( era_sample_indices )
 
     def set_children_bounds(self, lower, upper):
@@ -419,22 +418,23 @@ class EraTreeGrower:
         """Initialize root node and finalize it if needed."""
         n_samples = self.X_binned.shape[0]
         depth = 0
+        self.gradients = gradients
+        self.hessians = hessians
 
         era_sample_indices = [ np.take(self.splitter.partition, np.where(self.eras[ self.splitter.partition ] == era_num)[0] ) for era_num in self.unique_eras ]
         
         sum_gradients = sum_parallel(gradients, self.n_threads)
-        era_sum_gradients = [ np.sum( gradients[ era_indices ] ) for era_indices in era_sample_indices ]
+        era_sum_gradients = np.array([ np.sum( gradients[ era_indices ] ) for era_indices in era_sample_indices ], dtype=float )
 
         if self.histogram_builder.hessians_are_constant:
             sum_hessians = hessians[0] * n_samples
-            era_sum_hessians = [ float( len( era_indices ) ) for era_indices in era_sample_indices ]
+            era_sum_hessians = np.array([ float( len( era_indices ) ) for era_indices in era_sample_indices ], dtype=float )
         else:
             sum_hessians = sum_parallel(hessians, self.n_threads)
-            era_sum_hessians = [ np.sum( hessians[ era_indices ] ) for era_indices in era_sample_indices ]
+            era_sum_hessians = np.array([ np.sum( hessians[ era_indices ] ) for era_indices in era_sample_indices ], dtype=float )
 
-        print( era_sample_indices )
-        print( era_sum_gradients )
-        print( era_sum_hessians )
+        print( type(sum_gradients) )
+        print( type(era_sum_gradients[0]) )
 
         self.root = TreeNode(
             depth=depth,
@@ -444,8 +444,7 @@ class EraTreeGrower:
             era_sample_indices=era_sample_indices,
             era_sum_gradients=era_sum_gradients,
             era_sum_hessians=era_sum_hessians,
-            value=0,
-            era_values=np.zeros(self.n_eras)
+            value=0
         )
 
         self.root.partition_start = 0
@@ -537,8 +536,12 @@ class EraTreeGrower:
         era_sum_gradients_left = [ np.sum( self.gradients[ era_indices ] ) for era_indices in era_sample_indices_left ]
         era_sum_gradients_right = [ np.sum( self.gradients[ era_indices ] ) for era_indices in era_sample_indices_right ]
 
-        era_sum_hessians_left = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_left ]
-        era_sum_hessians_right = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_right ]
+        if self.histogram_builder.hessians_are_constant:
+            era_sum_hessians_left = [ float( len( era_indices ) ) for era_indices in era_sample_indices_left ]
+            era_sum_hessians_right = [ float( len( era_indices ) ) for era_indices in era_sample_indices_right ]
+        else:
+            era_sum_hessians_left = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_left ]
+            era_sum_hessians_right = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_right ]
 
         left_child_node = TreeNode(
             depth,
@@ -548,8 +551,7 @@ class EraTreeGrower:
             era_sample_indices_left,
             era_sum_gradients_left,
             era_sum_hessians_left,
-            value=node.split_info.value_left,
-            era_values=node.split_info.era_values_left
+            value=node.split_info.value_left
             
         )
         right_child_node = TreeNode(
@@ -560,8 +562,7 @@ class EraTreeGrower:
             era_sample_indices_right,
             era_sum_gradients_right,
             era_sum_hessians_right,
-            value=node.split_info.value_right,
-            era_values=node.split_info.era_values_right
+            value=node.split_info.value_right
         )
 
         node.right_child = right_child_node
