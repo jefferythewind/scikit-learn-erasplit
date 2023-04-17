@@ -2031,6 +2031,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "scoring": [str, callable, None],
         "verbose": ["verbose"],
         "random_state": ["random_state"],
+        "boltzmann_alpha": [Interval(Real, None, None, closed="neither")]
     }
 
     @abstractmethod
@@ -2056,6 +2057,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         tol,
         verbose,
         random_state,
+        boltzmann_alpha
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2076,6 +2078,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.tol = tol
         self.verbose = verbose
         self.random_state = random_state
+        self.boltzmann_alpha = boltzmann_alpha
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2272,6 +2275,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
             Fitted estimator.
         """
         self._validate_params()
+        print(self.boltzmann_alpha)
 
         fit_start_time = time()
         acc_find_split_time = 0.0  # time spent finding the best splits
@@ -2606,6 +2610,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     l2_regularization=self.l2_regularization,
                     shrinkage=self.learning_rate,
                     n_threads=n_threads,
+                    boltzmann_alpha=self.boltzmann_alpha
                 )
                 grower.grow()
 
@@ -3378,6 +3383,7 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         tol=1e-7,
         verbose=0,
         random_state=None,
+        boltzmann_alpha=0.0
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3399,6 +3405,7 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             tol=tol,
             verbose=verbose,
             random_state=random_state,
+            boltzmann_alpha=boltzmann_alpha
         )
         self.quantile = quantile
 

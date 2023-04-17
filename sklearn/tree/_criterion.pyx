@@ -1684,12 +1684,13 @@ cdef class ERAMSE(EraRegressionCriterion):
 
         cdef double divisor = 0.0
         cdef double good_numbers = 0.0
+        cdef double l2reg = 1.0 #1e-15
 
         #printf('---Printing Era Impurity Improvements--\n')
         #printf('ba %.5f\n', self.boltzmann_alpha)
         #printf("era gains: \n")
         for era_i in range(self.num_eras):
-            #printf('---Printing Era %d--\n', era_i)
+            #printf('---Era %d--\n', era_i)
             proxy_impurity_left = 0.0
             proxy_impurity_right = 0.0
             proxy_impurity_total = 0.0
@@ -1698,15 +1699,15 @@ cdef class ERAMSE(EraRegressionCriterion):
                 proxy_impurity_right += self.sum_right[era_i, k] * self.sum_right[era_i, k]
                 proxy_impurity_total += self.sum_total[era_i, k] * self.sum_total[era_i, k]
 
-            #printf('sl: %.5f, sr: %.5f, wl: %.5f, wr: %.5f\n', self.sum_left[era_i, k], self.sum_right[era_i, k], self.weighted_n_left_era[era_i], self.weighted_n_right_era[era_i] )
+            #printf('sl: %.5f, sr: %.5f, wl: %.5f, wr: %.5f, st: %.5f\n', self.sum_left[era_i, k], self.sum_right[era_i, k], self.weighted_n_left_era[era_i], self.weighted_n_right_era[era_i], self.sum_total[era_i, k] )
             
             #if self.weighted_n_left_era[era_i] == 0.0 or self.weighted_n_right_era[era_i] == 0.0:
                 #pii = 0.0
             #else:
-            pii = proxy_impurity_left / (self.weighted_n_left_era[era_i] + 1) + proxy_impurity_right / (self.weighted_n_right_era[era_i] + 1) - proxy_impurity_total / (self.weighted_n_node_samples_era[era_i] + 1)
+            pii = proxy_impurity_left / (self.weighted_n_left_era[era_i] + l2reg) + proxy_impurity_right / (self.weighted_n_right_era[era_i] + l2reg) - proxy_impurity_total / (self.weighted_n_node_samples_era[era_i] + l2reg)
             summ += pii
 
-            #printf('%.5f, ', pii)
+            #printf('era gain: %.5f\n', pii)
             #printf('sum era %d: %.5f ', era_i, pii[era_i])
             denominator += exp( self.boltzmann_alpha * pii )
             numerator += pii * exp( self.boltzmann_alpha * pii )
@@ -1715,7 +1716,7 @@ cdef class ERAMSE(EraRegressionCriterion):
         #printf("good numbers: %.5f\n", good_numbers)
         #printf("numerator: %.5f\n", numerator)
         #printf("denominator: %.5f\n", denominator)
-        #printf("boltzmann values: %.5f\n", numerator/denominator)
+        #printf("boltzmann gain: %.5f\n", numerator/denominator)
         if summ == 0.0 and isinf( numerator ):
             printf('summ is zero and numerator is inf\n')
         
