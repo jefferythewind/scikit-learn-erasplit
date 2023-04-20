@@ -262,7 +262,8 @@ class EraTreeGrower:
         min_hessian_to_split=1e-3,
         shrinkage=1.0,
         n_threads=None,
-        boltzmann_alpha=0.0
+        boltzmann_alpha=0.0,
+        colsample_bytree=1.0
     ):
         
         self._validate_parameters(
@@ -273,6 +274,7 @@ class EraTreeGrower:
         )
         n_threads = _openmp_effective_n_threads(n_threads)
         self.boltzmann_alpha = boltzmann_alpha
+        self.colsample_bytree = colsample_bytree
 
         if n_bins_non_missing is None:
             n_bins_non_missing = n_bins - 1
@@ -401,8 +403,8 @@ class EraTreeGrower:
 
     def grow(self):
         """Grow the tree, from root to leaves."""
-        print('growing the tree')
-        print(self.splittable_nodes)
+        # print('growing the tree')
+        # print(self.splittable_nodes)
         while self.splittable_nodes:
             self.split_next()
 
@@ -429,8 +431,8 @@ class EraTreeGrower:
 
         era_sample_indices = [ np.take(self.splitter.partition, np.where(self.eras[ self.splitter.partition ] == era_num)[0] ) for era_num in self.unique_eras ]
         
-        print( "root era sample indices. ")
-        print( [x.shape for x in era_sample_indices] )
+        # print( "root era sample indices. ")
+        # print( [x.shape for x in era_sample_indices] )
 
         sum_gradients = sum_parallel(gradients, self.n_threads)
         era_sum_gradients = np.array([ np.sum( gradients[ era_indices ] ) for era_indices in era_sample_indices ], dtype=float )
@@ -442,7 +444,7 @@ class EraTreeGrower:
             sum_hessians = sum_parallel(hessians, self.n_threads)
             era_sum_hessians = np.array([ np.sum( hessians[ era_indices ] ) for era_indices in era_sample_indices ], dtype=float )
 
-        print( era_sum_hessians )
+        # print( era_sum_hessians )
         # print( type(era_sum_gradients[0]) )
 
         self.root = TreeNode(
@@ -474,6 +476,19 @@ class EraTreeGrower:
                 allowed_features, dtype=np.uint32, count=len(allowed_features)
             )
 
+        if self.colsample_bytree < 1.0:
+            n = int(self.colsample_bytree * self.n_features)  # number of integers to select
+            integers = list(range(self.n_features))  # list of integers between 0 and i-1 inclusive
+            selected_integers = np.random.choice(integers, n, replace=False)  # randomly select n integers without replacement
+            # print("selected integers ", selected_integers)
+            if self.root.allowed_features is None:
+                self.root.allowed_features = selected_integers
+            else:
+                self.root.allowed_features = np.intersect1d( selected_integers, self.root.allowed_features )
+
+            self.root.allowed_features = np.array( self.root.allowed_features, dtype=np.uint32 )
+
+
         tic = time()
         self.root.histograms = self.histogram_builder.compute_era_histograms_brute(
             self.root.sample_indices, self.root.allowed_features
@@ -495,13 +510,11 @@ class EraTreeGrower:
         # print('finding split')
         # print('node.num_eras ', node.num_eras)
 
-        era_n_samples_left = np.zeros( node.num_eras, dtype=np.uint32)
-        era_n_samples_right = np.zeros( node.num_eras, dtype=np.uint32)
-        era_sum_gradient_left = np.zeros( node.num_eras, dtype=float)
-        era_sum_gradient_right = np.zeros( node.num_eras, dtype=float)
-        era_sum_hessian_left = np.zeros( node.num_eras, dtype=float)
-        era_sum_hessian_right = np.zeros( node.num_eras, dtype=float)
-        era_node_values = np.zeros( node.num_eras, dtype=float)
+        # era_sum_gradient_left = np.zeros( node.num_eras, dtype=float)
+        # era_sum_gradient_right = np.zeros( node.num_eras, dtype=float)
+        # era_sum_hessian_left = np.zeros( node.num_eras, dtype=float)
+        # era_sum_hessian_right = np.zeros( node.num_eras, dtype=float)
+        # era_node_values = np.zeros( node.num_eras, dtype=float)
 
         # print(self.boltzmann_alpha)
 
@@ -515,13 +528,6 @@ class EraTreeGrower:
             value=node.value,
             num_eras=node.num_eras,
             num_eras_float=node.num_eras_float,
-            era_n_samples_left=era_n_samples_left,
-            era_n_samples_right=era_n_samples_right,
-            era_sum_gradient_left=era_sum_gradient_left,
-            era_sum_gradient_right=era_sum_gradient_right,
-            era_sum_hessian_left=era_sum_hessian_left,
-            era_sum_hessian_right=era_sum_hessian_right,
-            era_node_values=era_node_values,
             lower_bound=node.children_lower_bound,
             upper_bound=node.children_upper_bound,
             allowed_features=node.allowed_features,
@@ -554,7 +560,11 @@ class EraTreeGrower:
         ) = self.splitter.split_indices(node.split_info, node.sample_indices)
         self.total_apply_split_time += time() - tic
 
+        # print("All Sample Indices")
+        # print(node.sample_indices)
+
         depth = node.depth + 1
+        # print("Depth:",depth)
         n_leaf_nodes = len(self.finalized_leaves) + len(self.splittable_nodes)
         n_leaf_nodes += 2
 
@@ -571,12 +581,12 @@ class EraTreeGrower:
             era_sum_hessians_left = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_left ]
             era_sum_hessians_right = [ np.sum( self.hessians[ era_indices ] ) for era_indices in era_sample_indices_right ]
 
-        print( "Downstream era sample indices left. ")
-        print( [x.shape for x in era_sample_indices_left] )
-        print( era_sum_hessians_left )
-        print( "Downstream era sample indices right. ")
-        print( [x.shape for x in era_sample_indices_right] )
-        print( era_sum_hessians_right )
+        # print( "Downstream era sample indices left. ")
+        # print( [x.shape for x in era_sample_indices_left] )
+        # print( era_sum_hessians_left )
+        # print( "Downstream era sample indices right. ")
+        # print( [x.shape for x in era_sample_indices_right] )
+        # print( era_sum_hessians_right )
 
         left_child_node = TreeNode(
             depth,
@@ -621,6 +631,12 @@ class EraTreeGrower:
                 left_child_node.interaction_cst_indices
             )
             right_child_node.allowed_features = left_child_node.allowed_features
+
+        elif self.colsample_bytree < 1.0:
+            # print("passing on allowed_features", node.allowed_features )
+            left_child_node.allowed_features = node.allowed_features
+            right_child_node.allowed_features = node.allowed_features
+
 
         if not self.has_missing_values[node.split_info.feature_idx]:
             # If no missing values are encountered at fit time, then samples

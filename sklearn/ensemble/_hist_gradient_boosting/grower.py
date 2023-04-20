@@ -241,6 +241,7 @@ class TreeGrower:
         min_hessian_to_split=1e-3,
         shrinkage=1.0,
         n_threads=None,
+        colsample_bytree=1.0
     ):
 
         self._validate_parameters(
@@ -249,6 +250,7 @@ class TreeGrower:
             min_hessian_to_split,
         )
         n_threads = _openmp_effective_n_threads(n_threads)
+        self.colsample_bytree = colsample_bytree
 
         if n_bins_non_missing is None:
             n_bins_non_missing = n_bins - 1
@@ -412,6 +414,18 @@ class TreeGrower:
                 allowed_features, dtype=np.uint32, count=len(allowed_features)
             )
 
+        if self.colsample_bytree < 1.0:
+            n = int(self.colsample_bytree * self.n_features)  # number of integers to select
+            integers = list(range(self.n_features))  # list of integers between 0 and i-1 inclusive
+            selected_integers = np.random.choice(integers, n, replace=False)  # randomly select n integers without replacement
+            # print("selected integers ", selected_integers)
+            if self.root.allowed_features is None:
+                self.root.allowed_features = selected_integers
+            else:
+                self.root.allowed_features = np.intersect1d( selected_integers, self.root.allowed_features )
+
+            self.root.allowed_features = np.array( self.root.allowed_features, dtype=np.uint32 )
+
         tic = time()
         self.root.histograms = self.histogram_builder.compute_histograms_brute(
             self.root.sample_indices, self.root.allowed_features
@@ -508,6 +522,12 @@ class TreeGrower:
                 left_child_node.interaction_cst_indices
             )
             right_child_node.allowed_features = left_child_node.allowed_features
+
+        elif self.colsample_bytree < 1.0:
+            # print("passing on allowed_features", node.allowed_features )
+            # print(len(node.allowed_features))
+            left_child_node.allowed_features = node.allowed_features
+            right_child_node.allowed_features = node.allowed_features
 
         if not self.has_missing_values[node.split_info.feature_idx]:
             # If no missing values are encountered at fit time, then samples
