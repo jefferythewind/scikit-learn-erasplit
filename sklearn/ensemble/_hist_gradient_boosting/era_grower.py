@@ -108,7 +108,7 @@ class TreeNode:
     partition_start = 0
     partition_stop = 0
 
-    def __init__(self, depth, sample_indices, sum_gradients, sum_hessians, era_sample_indices, era_sum_gradients, era_sum_hessians, value=None):
+    def __init__(self, depth, sample_indices, sum_gradients, sum_hessians, era_sum_gradients, era_sum_hessians, value=None):
         self.depth = depth
         self.sample_indices = sample_indices
         self.n_samples = sample_indices.shape[0]
@@ -120,11 +120,10 @@ class TreeNode:
         self.interaction_cst_indices = None
         self.set_children_bounds(float("-inf"), float("+inf"))
 
-        self.era_sample_indices = era_sample_indices
         self.era_sum_gradients = era_sum_gradients
         self.era_sum_hessians = era_sum_hessians
-        self.num_eras = len( era_sample_indices )
-        self.num_eras_float = float( len( era_sample_indices ) )
+        self.num_eras = len( era_sum_gradients )
+        self.num_eras_float = float( self.num_eras )
 
     def set_children_bounds(self, lower, upper):
         """Set children values bounds to respect monotonic constraints."""
@@ -452,7 +451,6 @@ class EraTreeGrower:
             sample_indices=self.splitter.partition,
             sum_gradients=sum_gradients,
             sum_hessians=sum_hessians,
-            era_sample_indices=era_sample_indices,
             era_sum_gradients=era_sum_gradients,
             era_sum_hessians=era_sum_hessians,
             value=0
@@ -593,7 +591,6 @@ class EraTreeGrower:
             sample_indices_left,
             node.split_info.sum_gradient_left,
             node.split_info.sum_hessian_left,
-            era_sample_indices_left,
             era_sum_gradients_left,
             era_sum_hessians_left,
             value=node.split_info.value_left
@@ -604,7 +601,6 @@ class EraTreeGrower:
             sample_indices_right,
             node.split_info.sum_gradient_right,
             node.split_info.sum_hessian_right,
-            era_sample_indices_right,
             era_sum_gradients_right,
             era_sum_hessians_right,
             value=node.split_info.value_right
