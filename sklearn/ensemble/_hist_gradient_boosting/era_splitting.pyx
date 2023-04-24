@@ -878,20 +878,22 @@ cdef class Splitter:
             split_info.n_samples_right = n_samples_ - best_n_samples_left
 
             # We recompute best values here but it's cheap
-            split_info.value_left = compute_node_value(
-                split_info.sum_gradient_left, 
-                split_info.sum_hessian_left,
+            split_info.value_left = compute_node_value_eras(
+                era_sum_gradient_left, 
+                era_sum_hessian_left,
                 lower_bound, 
                 upper_bound, 
-                self.l2_regularization
+                self.l2_regularization,
+                num_eras_
             )
 
-            split_info.value_right = compute_node_value(
-                split_info.sum_gradient_right, 
-                split_info.sum_hessian_right,
+            split_info.value_right = compute_node_value_eras(
+                era_sum_gradient_right, 
+                era_sum_hessian_right,
                 lower_bound, 
                 upper_bound, 
-                self.l2_regularization
+                self.l2_regularization,
+                num_eras_
             )
         
         free(era_sum_gradient_left)
@@ -1429,3 +1431,51 @@ cpdef inline Y_DTYPE_C compute_node_value(
         value = upper_bound
 
     return value
+
+cdef inline Y_DTYPE_C compute_node_value_eras(
+    Y_DTYPE_C* era_sum_gradient,
+    Y_DTYPE_C* era_sum_hessian,
+    Y_DTYPE_C lower_bound,
+    Y_DTYPE_C upper_bound,
+    Y_DTYPE_C l2_regularization,
+    unsigned int num_eras,
+    #Y_DTYPE_C num_eras_float,
+    #Y_DTYPE_C boltzmann_alpha
+) noexcept nogil:
+    '''Compute Node's Era Value, which is a (soft) mean of the values of the node for each era.'''
+    cdef:
+        Y_DTYPE_C era_node_value
+        Y_DTYPE_C era_node_value_helper
+        Y_DTYPE_C good_eras = 0.
+        #Y_DTYPE_C return_node_value
+        #Y_DTYPE_C boltzmann_num
+        #Y_DTYPE_C boltzmann_den
+        unsigned int era_idx
+    
+    era_node_value = 0.
+
+    #printf('era node split ---- \n')
+
+
+    for era_idx in range( num_eras ):
+        #printf("era: %d -- ",era_idx)
+        #printf("gradients: %.5f, ", era_sum_gradient[era_idx])
+        #printf("hessians: %.5f, ", era_sum_hessian[era_idx])
+        if era_sum_hessian[era_idx] > 0.:
+            good_eras += 1.
+            era_node_value_helper = compute_node_value(
+                era_sum_gradient[era_idx],
+                era_sum_hessian[era_idx],
+                lower_bound,
+                upper_bound,
+                l2_regularization
+            )
+            #printf( "node val: %.5f", era_node_value_helper )
+            era_node_value += era_node_value_helper
+        #printf("\n")
+
+    if good_eras == 0.:
+        good_eras = 1.
+
+    return era_node_value / good_eras
+
