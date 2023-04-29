@@ -519,6 +519,31 @@ cdef class Splitter:
             int n_threads = self.n_threads
             bint has_interaction_cst = False
 
+            #np.ndarray[Y_DTYPE_C, ndim=1] era_sum_gradient_left = np.empty(num_eras, dtype=Y_DTYPE_C)
+            #np.ndarray[Y_DTYPE_C, ndim=1] era_sum_gradient_right = np.empty(num_eras, dtype=Y_DTYPE_C)
+            #np.ndarray[Y_DTYPE_C, ndim=1] era_sum_hessian_left = np.empty(num_eras, dtype=Y_DTYPE_C)
+            #np.ndarray[Y_DTYPE_C, ndim=1] era_sum_hessian_right = np.empty(num_eras, dtype=Y_DTYPE_C)
+            #np.ndarray[Y_DTYPE_C, ndim=1] era_node_values = np.empty(num_eras, dtype=Y_DTYPE_C)
+
+            # Allocate memory for the arrays
+            unsigned int i
+            Y_DTYPE_C** era_sum_gradient_left = <Y_DTYPE_C**>malloc(self.n_threads * sizeof(Y_DTYPE_C*))
+            Y_DTYPE_C** era_sum_gradient_right = <Y_DTYPE_C**>malloc(self.n_threads * sizeof(Y_DTYPE_C*))
+            Y_DTYPE_C** era_sum_hessian_left = <Y_DTYPE_C**>malloc(self.n_threads * sizeof(Y_DTYPE_C*))
+            Y_DTYPE_C** era_sum_hessian_right = <Y_DTYPE_C**>malloc(self.n_threads * sizeof(Y_DTYPE_C*))
+            Y_DTYPE_C** era_node_values = <Y_DTYPE_C**>malloc(self.n_threads * sizeof(Y_DTYPE_C*))
+            unsigned int thread_id_;
+            #unsigned int* thread_ids = <int*>malloc(self.n_threads * sizeof(int))
+
+        # Allocate memory for each 2-dimensional array
+        for i in range(self.n_threads):
+            era_sum_gradient_left[i] = <Y_DTYPE_C*>malloc(num_eras * sizeof(Y_DTYPE_C))
+            era_sum_gradient_right[i] = <Y_DTYPE_C*>malloc(num_eras * sizeof(Y_DTYPE_C))
+            era_sum_hessian_left[i] = <Y_DTYPE_C*>malloc(num_eras * sizeof(Y_DTYPE_C))
+            era_sum_hessian_right[i] = <Y_DTYPE_C*>malloc(num_eras * sizeof(Y_DTYPE_C))
+            era_node_values[i] = <Y_DTYPE_C*>malloc(num_eras * sizeof(Y_DTYPE_C))
+
+
         has_interaction_cst = allowed_features is not None
         if has_interaction_cst:
             n_allowed_features = allowed_features.shape[0]
@@ -531,6 +556,7 @@ cdef class Splitter:
             # split_info_idx is index of split_infos of size n_features_allowed
             # features_idx is the index of the feature column in X
             for split_info_idx in prange( n_allowed_features, schedule='static', num_threads=n_threads):
+                thread_id_ = threadid()
 
                 if has_interaction_cst:
                     feature_idx = allowed_features[split_info_idx]
@@ -581,7 +607,12 @@ cdef class Splitter:
                     lower_bound, 
                     upper_bound,
                     &split_infos[split_info_idx],
-                    boltzmann_alpha
+                    boltzmann_alpha,
+                    era_sum_gradient_left[thread_id_],
+                    era_sum_gradient_right[thread_id_],
+                    era_sum_hessian_left[thread_id_],
+                    era_sum_hessian_right[thread_id_],
+                    era_node_values[thread_id_]
                 )
                     
                 #if has_missing_values[feature_idx]:
@@ -675,7 +706,12 @@ cdef class Splitter:
             Y_DTYPE_C lower_bound,
             Y_DTYPE_C upper_bound,
             split_info_struct * split_info, # OUT
-            Y_DTYPE_C boltzmann_alpha
+            Y_DTYPE_C boltzmann_alpha,
+            Y_DTYPE_C* era_sum_gradient_left,
+            Y_DTYPE_C* era_sum_gradient_right,
+            Y_DTYPE_C* era_sum_hessian_left,
+            Y_DTYPE_C* era_sum_hessian_right,
+            Y_DTYPE_C* era_node_values
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -723,22 +759,10 @@ cdef class Splitter:
 
             Y_DTYPE_C boltzmann_numerator
             Y_DTYPE_C boltzmann_denominator
-
-            Y_DTYPE_C* era_sum_gradient_left = <Y_DTYPE_C*>malloc(num_eras*sizeof(Y_DTYPE_C))
-            Y_DTYPE_C* era_sum_gradient_right = <Y_DTYPE_C*>malloc(num_eras*sizeof(Y_DTYPE_C))
-            Y_DTYPE_C* era_sum_hessian_left = <Y_DTYPE_C*>malloc(num_eras*sizeof(Y_DTYPE_C))
-            Y_DTYPE_C* era_sum_hessian_right = <Y_DTYPE_C*>malloc(num_eras*sizeof(Y_DTYPE_C))
-            Y_DTYPE_C* era_node_values = <Y_DTYPE_C*>malloc(num_eras*sizeof(Y_DTYPE_C))
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
 
-        #loss_current_node = _loss_from_value(value, sum_gradients)
-        #printf('boltzmann alpha: %.5f\n', boltzmann_alpha)
-        #initialize era-wise data
-        #printf("----- top ------\n")
-        #printf("n_samples_ %d\n", n_samples_)
-        #printf("n_samples %d\n", n_samples)
         for era_idx3 in range(num_eras_):
             era_sum_gradient_left[era_idx3] = 0.
             era_sum_hessian_left[era_idx3] = 0.
@@ -751,41 +775,18 @@ cdef class Splitter:
                 upper_bound, 
                 self.l2_regularization
             )
-        #printf("all era hessians: %.5f\n", all_era_hessians)
-
-        
-        #printf("data\n")
-        #for era_idx in range(num_eras_):
-        #    running_sum = 0.
-        #    printf('era total hessian: %.5f\n',era_sum_hessians[ era_idx ])
-        #    printf('running sum: ')
-        #    for bin_idx in range(end):
-        #        running_sum += histograms[feature_idx, bin_idx, era_idx].count
-        #        printf(' left: %.5f, right: %.5f |', running_sum, era_sum_hessians[ era_idx ] - running_sum )
-        #    
-        #    printf('\n')
-        #
-        #printf('---- end data ----\n')
 
         for bin_idx in range(end):
             #gain = 0.
             boltzmann_numerator = 0.
             boltzmann_denominator = 0.
             for era_idx in range(num_eras_):
-                #printf("bin idx: %d, era_idx: %d\n", bin_idx, era_idx)
                 n_samples_left += histograms[feature_idx, bin_idx, era_idx].count
-                #printf('n_samples_left: %d\n', n_samples_left)
-                #printf('era_sum_hessians before: %.5f\n', era_sum_hessian_left[era_idx])
-                #if self.hessians_are_constant:
-                era_sum_hessian_left[era_idx] += float( histograms[feature_idx, bin_idx, era_idx].count )
                 sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].count
-                #printf('era_sum_hessians after: %.5f\n', era_sum_hessian_left[era_idx])
-                #else:
-                #    era_sum_hessian_left[era_idx] += histograms[feature_idx, bin_idx, era_idx].sum_hessians
-                #    sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].sum_hessians
+
+                era_sum_hessian_left[era_idx] += float( histograms[feature_idx, bin_idx, era_idx].count )
                 era_sum_hessian_right[era_idx] = era_sum_hessians[era_idx] - era_sum_hessian_left[era_idx]
-                #printf('era_sum_hessians right: %.5f, total era sum, era sum hessians %.5f.\n', era_sum_hessian_right[era_idx], era_sum_hessians[era_idx])
-                
+
                 era_sum_gradient_left[ era_idx ] += histograms[feature_idx, bin_idx, era_idx].sum_gradients
                 era_sum_gradient_right[ era_idx ] = era_sum_gradients[era_idx] - era_sum_gradient_left[era_idx]
 
@@ -797,10 +798,7 @@ cdef class Splitter:
                         era_sum_hessian_left[era_idx],
                         era_sum_gradient_right[era_idx], 
                         era_sum_hessian_right[era_idx],
-                        _loss_from_value( 
-                            era_node_values[era_idx], 
-                            era_sum_gradients[era_idx] 
-                        ),
+                        era_node_values[era_idx] * era_sum_gradients[era_idx],
                         monotonic_cst,
                         lower_bound,
                         upper_bound,
@@ -813,37 +811,27 @@ cdef class Splitter:
                 else:
                     era_gain = 0.
 
-                if era_sum_hessian_right[era_idx] < 0. or era_sum_hessian_left[era_idx] < 0.:
-                    printf('Era Gain Stats\n')
-                    printf('era_idx %d\n', era_idx)
-                    printf('era_sum_hessian_left = %.5f\n', era_sum_hessian_left[ era_idx ])
-                    printf('era_sum_hessian_right = %.5f\n', era_sum_hessian_right[ era_idx ])
-                    printf('sum_hessian = %.5f\n', era_sum_hessians[ era_idx ])
-                    printf('era hessians ----\n')
-                    for era_idx2 in range(num_eras_):
-                        printf('era: %d, era_sum_hess %.1f, ',era_idx2, era_sum_hessians[ era_idx2 ])
-                    printf('\n')
-                    printf('total hessian: %d\n', n_samples_)
-                    printf('-------------------\n')
+                #if era_sum_hessian_right[era_idx] < 0. or era_sum_hessian_left[era_idx] < 0.:
+                #    printf('Era Gain Stats\n')
+                #    printf('era_idx %d\n', era_idx)
+                #    printf('era_sum_hessian_left = %.5f\n', era_sum_hessian_left[ era_idx ])
+                #    printf('era_sum_hessian_right = %.5f\n', era_sum_hessian_right[ era_idx ])
+                #    printf('sum_hessian = %.5f\n', era_sum_hessians[ era_idx ])
+                #    printf('era hessians ----\n')
+                #    for era_idx2 in range(num_eras_):
+                #        printf('era: %d, era_sum_hess %.1f, ',era_idx2, era_sum_hessians[ era_idx2 ])
+                #    printf('\n')
+                #    printf('total hessian: %d\n', n_samples_)
+                #    printf('-------------------\n')
                 gain += era_gain
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
-            #printf("boltz gain: %.5f\n", boltzmann_numerator / boltzmann_denominator)
             gain = boltzmann_numerator / boltzmann_denominator
-            #printf("Overall Gain: %.5f\n", gain)
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
             sum_gradient_right = sum_gradients - sum_gradient_left
-
-            #printf('POST-----\n')
-            #printf('n_samples_ %d\n', n_samples_)
-            #printf('n_samples_left %d\n', n_samples_left )
-            #printf('n_samples_right %d\n', n_samples_right )
-            #printf('sum_hessians %.5f\n', sum_hessians)
-            #printf('sum_hessian_left %.5f\n', sum_hessian_left )
-            #printf('sum_hessian_right %.5f\n', sum_hessian_right )
 
             if n_samples_left < self.min_samples_leaf:
                 continue
@@ -893,12 +881,6 @@ cdef class Splitter:
                 upper_bound, 
                 self.l2_regularization
             )
-        
-        free(era_sum_gradient_left)
-        free(era_sum_gradient_right)
-        free(era_sum_hessian_left)
-        free(era_sum_hessian_right)
-        free(era_node_values)
 
     cdef void _find_best_bin_to_split_right_to_left(
             Splitter self,
@@ -1360,13 +1342,15 @@ cdef inline Y_DTYPE_C _split_gain(
         return -1
 
     gain = loss_current_node
-    gain -= _loss_from_value(value_left, sum_gradient_left)
-    gain -= _loss_from_value(value_right, sum_gradient_right)
+    gain -= value_left * sum_gradient_left
+    gain -= value_right * sum_gradient_right
     # Note that for the gain to be correct (and for min_gain_to_split to work
     # as expected), we need all values to be bounded (current node, left child
     # and right child).
 
     return gain
+
+
 
 cdef inline Y_DTYPE_C _loss_from_value(
         Y_DTYPE_C value,
