@@ -2602,6 +2602,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
 
             # Build `n_trees_per_iteration` trees.
             for k in range(self.n_trees_per_iteration_):
+                print( "residual size: ", np.mean( np.abs(g_view[:, k]) ) )
                 grower = EraTreeGrower(
                     X_binned=X_binned_train,
                     gradients=g_view[:, k],

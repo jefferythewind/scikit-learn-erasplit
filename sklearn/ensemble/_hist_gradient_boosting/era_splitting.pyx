@@ -614,7 +614,7 @@ cdef class Splitter:
                     era_sum_hessian_right[thread_id_],
                     era_node_values[thread_id_]
                 )
-                    
+                '''
                 if has_missing_values[feature_idx]:
                     # We need to explore both directions to check whether
                     # sending the nans to the left child would lead to a higher
@@ -641,6 +641,7 @@ cdef class Splitter:
                         era_sum_hessian_right[thread_id_],
                         era_node_values[thread_id_]
                     )
+                    '''
 
             # then compute best possible split among all features
             # split_info is set to the best of split_infos
@@ -670,6 +671,20 @@ cdef class Splitter:
             out.left_cat_bitset = np.asarray(split_info.left_cat_bitset, dtype=np.uint32)
 
         free(split_infos)
+        # Free memory for each 2-dimensional array
+        for i in range(self.n_threads):
+            free(era_sum_gradient_left[i])
+            free(era_sum_gradient_right[i])
+            free(era_sum_hessian_left[i])
+            free(era_sum_hessian_right[i])
+            free(era_node_values[i])
+
+        # Free memory for the arrays of pointers
+        free(era_sum_gradient_left)
+        free(era_sum_gradient_right)
+        free(era_sum_hessian_left)
+        free(era_sum_hessian_right)
+        free(era_node_values)
         return out
 
     cdef unsigned int _find_best_feature_to_split_helper(
