@@ -2039,7 +2039,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "verbose": ["verbose"],
         "random_state": ["random_state"],
         "boltzmann_alpha": [Interval(Real, None, None, closed="neither")],
-        "colsample_bytree":[Interval(Real, 0, 1, closed="right")]
+        "colsample_bytree":[Interval(Real, 0, 1, closed="right")],
+        "gamma": [Interval(Real, 0, 1, closed="both")]
     }
 
     @abstractmethod
@@ -2066,7 +2067,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         verbose,
         random_state,
         boltzmann_alpha,
-        colsample_bytree
+        colsample_bytree,
+        gamma
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2089,6 +2091,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.random_state = random_state
         self.boltzmann_alpha = boltzmann_alpha
         self.colsample_bytree = colsample_bytree
+        self.gamma = gamma
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2622,7 +2625,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     shrinkage=self.learning_rate,
                     n_threads=n_threads,
                     boltzmann_alpha=self.boltzmann_alpha,
-                    colsample_bytree=self.colsample_bytree
+                    colsample_bytree=self.colsample_bytree,
+                    gamma=self.gamma
                 )
                 grower.grow()
 
@@ -3397,6 +3401,7 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         random_state=None,
         boltzmann_alpha=0.0,
         colsample_bytree=1.0,
+        gamma=0.
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3419,7 +3424,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             verbose=verbose,
             random_state=random_state,
             boltzmann_alpha=boltzmann_alpha,
-            colsample_bytree=colsample_bytree
+            colsample_bytree=colsample_bytree,
+            gamma=gamma
         )
         self.quantile = quantile
 

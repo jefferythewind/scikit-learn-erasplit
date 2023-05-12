@@ -464,7 +464,8 @@ cdef class Splitter:
             const Y_DTYPE_C lower_bound=-INFINITY,
             const Y_DTYPE_C upper_bound=INFINITY,
             const unsigned int [:] allowed_features=None,
-            Y_DTYPE_C boltzmann_alpha=0.
+            Y_DTYPE_C boltzmann_alpha=0.,
+            Y_DTYPE_C gamma=0.
         ):
         """For each feature, find the best bin to split on at a given node.
 
@@ -612,7 +613,8 @@ cdef class Splitter:
                     era_sum_gradient_right[thread_id_],
                     era_sum_hessian_left[thread_id_],
                     era_sum_hessian_right[thread_id_],
-                    era_node_values[thread_id_]
+                    era_node_values[thread_id_],
+                    gamma
                 )
                 '''
                 if has_missing_values[feature_idx]:
@@ -724,7 +726,8 @@ cdef class Splitter:
             Y_DTYPE_C* era_sum_gradient_right,
             Y_DTYPE_C* era_sum_hessian_left,
             Y_DTYPE_C* era_sum_hessian_right,
-            Y_DTYPE_C* era_node_values
+            Y_DTYPE_C* era_node_values,
+            Y_DTYPE_C gamma
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -772,9 +775,13 @@ cdef class Splitter:
 
             Y_DTYPE_C boltzmann_numerator
             Y_DTYPE_C boltzmann_denominator
+
+            Y_DTYPE_C original_gain
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
+
+        loss_current_node = _loss_from_value(value, sum_gradients)
 
         for era_idx3 in range(num_eras_):
             era_sum_gradient_left[era_idx3] = 0.
@@ -857,6 +864,16 @@ cdef class Splitter:
             if sum_hessian_right < self.min_hessian_to_split:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
+
+            original_gain = _split_gain(sum_gradient_left, sum_hessian_left,
+                sum_gradient_right, sum_hessian_right,
+                loss_current_node,
+                monotonic_cst,
+                lower_bound,
+                upper_bound,
+                self.l2_regularization)
+
+            gain = ( 1 - gamma ) * gain + gamma * original_gain
 
             if gain > best_gain and gain > self.min_gain_to_split:
                 found_better_split = True
