@@ -745,7 +745,6 @@ cdef class Splitter:
         cdef:
             unsigned int bin_idx
             unsigned int era_idx
-            unsigned int era_idx2
             unsigned int era_idx3
             unsigned int n_samples_left
             unsigned int n_samples_right
@@ -824,26 +823,10 @@ cdef class Splitter:
                         upper_bound,
                         self.l2_regularization
                     )
-                    #if era_gain < 0.:
-                    #    printf('negative era gain!!\n')
-                    #    printf('era gain: %.5f\n', era_gain)
-                    #    era_gain = 0.
+
                 else:
                     era_gain = 0.
 
-                #if era_sum_hessian_right[era_idx] < 0. or era_sum_hessian_left[era_idx] < 0.:
-                #    printf('Era Gain Stats\n')
-                #    printf('era_idx %d\n', era_idx)
-                #    printf('era_sum_hessian_left = %.5f\n', era_sum_hessian_left[ era_idx ])
-                #    printf('era_sum_hessian_right = %.5f\n', era_sum_hessian_right[ era_idx ])
-                #    printf('sum_hessian = %.5f\n', era_sum_hessians[ era_idx ])
-                #    printf('era hessians ----\n')
-                #    for era_idx2 in range(num_eras_):
-                #        printf('era: %d, era_sum_hess %.1f, ',era_idx2, era_sum_hessians[ era_idx2 ])
-                #    printf('\n')
-                #    printf('total hessian: %d\n', n_samples_)
-                #    printf('-------------------\n')
-                gain += era_gain
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
@@ -865,15 +848,20 @@ cdef class Splitter:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
 
-            original_gain = _split_gain(sum_gradient_left, sum_hessian_left,
-                sum_gradient_right, sum_hessian_right,
-                loss_current_node,
-                monotonic_cst,
-                lower_bound,
-                upper_bound,
-                self.l2_regularization)
+            if gamma > 0.:
 
-            gain = ( 1 - gamma ) * gain + gamma * original_gain
+                original_gain = _split_gain(
+                    sum_gradient_left, 
+                    sum_hessian_left,
+                    sum_gradient_right, 
+                    sum_hessian_right,
+                    loss_current_node,
+                    monotonic_cst,
+                    lower_bound,
+                    upper_bound,
+                    self.l2_regularization)
+
+                gain = ( 1 - gamma ) * gain + gamma * original_gain
 
             if gain > best_gain and gain > self.min_gain_to_split:
                 found_better_split = True
