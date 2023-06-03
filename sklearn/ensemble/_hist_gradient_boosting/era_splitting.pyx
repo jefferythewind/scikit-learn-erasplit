@@ -776,6 +776,10 @@ cdef class Splitter:
             Y_DTYPE_C boltzmann_denominator
 
             Y_DTYPE_C original_gain
+
+            Y_DTYPE_C value_direction
+            int first_value_direction = 0
+            unsigned int direction_conflict = 0
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -799,6 +803,7 @@ cdef class Splitter:
             #gain = 0.
             boltzmann_numerator = 0.
             boltzmann_denominator = 0.
+            direction_conflict = 0
             for era_idx in range(num_eras_):
                 n_samples_left += histograms[feature_idx, bin_idx, era_idx].count
                 sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].count
@@ -812,6 +817,30 @@ cdef class Splitter:
                 sum_gradient_left += histograms[feature_idx, bin_idx, era_idx].sum_gradients
                 
                 if era_sum_hessian_left[era_idx] > 0. and era_sum_hessian_right[era_idx] > 0.:
+
+                    value_direction = compute_node_value(
+                        era_sum_gradient_left[era_idx], 
+                        era_sum_hessian_left[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    ) - compute_node_value(
+                        era_sum_gradient_right[era_idx], 
+                        era_sum_hessian_right[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    )
+
+                    if first_value_direction == 0:
+                        if value_direction > 0.:
+                            first_value_direction == 1
+                        elif value_direction < 0.:
+                            first_value_direction == -1
+                    else:
+                        if ( value_direction > 0. and first_value_direction < 0 ) or ( value_direction < 0. and first_value_direction > 0 ):
+                            direction_conflict = 1
+
                     era_gain = _split_gain(
                         era_sum_gradient_left[era_idx], 
                         era_sum_hessian_left[era_idx],
@@ -824,8 +853,11 @@ cdef class Splitter:
                         self.l2_regularization
                     )
 
+                    value_direction
+
                 else:
                     era_gain = 0.
+                    direction_conflict = 1
 
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
@@ -863,7 +895,7 @@ cdef class Splitter:
 
                 gain = ( 1 - gamma ) * gain + gamma * original_gain
 
-            if gain > best_gain and gain > self.min_gain_to_split:
+            if gain > best_gain and gain > self.min_gain_to_split and direction_conflict == 0:
                 found_better_split = True
                 best_gain = gain
                 best_bin_idx = bin_idx
