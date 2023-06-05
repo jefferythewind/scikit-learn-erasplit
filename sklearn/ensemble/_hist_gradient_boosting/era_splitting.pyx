@@ -779,6 +779,7 @@ cdef class Splitter:
 
             Y_DTYPE_C value_direction
             int first_value_direction = 0
+            unsigned int found_bad_direction = 0
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -803,6 +804,7 @@ cdef class Splitter:
             boltzmann_numerator = 0.
             boltzmann_denominator = 0.
             first_value_direction = 0
+            found_bad_direction = 0
             for era_idx in range(num_eras_):
                 n_samples_left += histograms[feature_idx, bin_idx, era_idx].count
                 sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].count
@@ -838,7 +840,8 @@ cdef class Splitter:
                             first_value_direction = -1
                     else:
                         if ( value_direction > 0. and first_value_direction < 0 ) or ( value_direction < 0. and first_value_direction > 0 ):
-                            return
+                            found_bad_direction = 1
+                            break
 
                     era_gain = _split_gain(
                         era_sum_gradient_left[era_idx], 
@@ -852,7 +855,6 @@ cdef class Splitter:
                         self.l2_regularization
                     )
 
-                    value_direction
 
                 else:
                     era_gain = 0.
@@ -860,7 +862,8 @@ cdef class Splitter:
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
-            gain = boltzmann_numerator / boltzmann_denominator
+            if found_bad_direction == 1:
+                continue
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
@@ -877,6 +880,8 @@ cdef class Splitter:
             if sum_hessian_right < self.min_hessian_to_split:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
+
+            gain = boltzmann_numerator / boltzmann_denominator
 
             if gamma > 0.:
 
