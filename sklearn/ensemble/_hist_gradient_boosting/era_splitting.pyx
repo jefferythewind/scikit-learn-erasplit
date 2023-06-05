@@ -830,11 +830,13 @@ cdef class Splitter:
                 else:
                     era_gain = 0.
                     have_full_eras = 0
+                    break
 
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
-
-            gain = boltzmann_numerator / boltzmann_denominator
+            
+            if have_full_eras == 0:
+                continue
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
@@ -852,6 +854,8 @@ cdef class Splitter:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
 
+            gain = boltzmann_numerator / boltzmann_denominator
+
             if gamma > 0.:
 
                 original_gain = _split_gain(
@@ -867,7 +871,7 @@ cdef class Splitter:
 
                 gain = ( 1 - gamma ) * gain + gamma * original_gain
 
-            if gain > best_gain and gain > self.min_gain_to_split and have_full_eras == 1:
+            if gain > best_gain and gain > self.min_gain_to_split:
                 found_better_split = True
                 best_gain = gain
                 best_bin_idx = bin_idx
