@@ -25,7 +25,7 @@ from ._bitset cimport set_bitset
 from ._bitset cimport in_bitset
 
 from libc.stdio cimport printf
-from libc.math cimport exp
+from libc.math cimport exp, abs
 
 
 
