@@ -2040,7 +2040,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "random_state": ["random_state"],
         "boltzmann_alpha": [Interval(Real, None, None, closed="neither")],
         "colsample_bytree":[Interval(Real, 0, 1, closed="right")],
-        "gamma": [Interval(Real, 0, 1, closed="both")]
+        "gamma": [Interval(Real, 0, 1, closed="both")],
+        "blama": [Interval(Real, 0, 1, closed="both")],
     }
 
     @abstractmethod
@@ -2068,7 +2069,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         random_state,
         boltzmann_alpha,
         colsample_bytree,
-        gamma
+        gamma,
+        blama
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2092,6 +2094,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.boltzmann_alpha = boltzmann_alpha
         self.colsample_bytree = colsample_bytree
         self.gamma = gamma
+        self.blama = blama
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2626,7 +2629,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     n_threads=n_threads,
                     boltzmann_alpha=self.boltzmann_alpha,
                     colsample_bytree=self.colsample_bytree,
-                    gamma=self.gamma
+                    gamma=self.gamma,
+                    blama=self.blama
                 )
                 grower.grow()
 
@@ -3401,7 +3405,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         random_state=None,
         boltzmann_alpha=0.0,
         colsample_bytree=1.0,
-        gamma=0.
+        gamma=0.,
+        blama=0.
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3425,7 +3430,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             random_state=random_state,
             boltzmann_alpha=boltzmann_alpha,
             colsample_bytree=colsample_bytree,
-            gamma=gamma
+            gamma=gamma,
+            blama=blama
         )
         self.quantile = quantile
 
