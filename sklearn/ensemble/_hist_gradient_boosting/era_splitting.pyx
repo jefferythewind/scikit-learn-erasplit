@@ -25,7 +25,7 @@ from ._bitset cimport set_bitset
 from ._bitset cimport in_bitset
 
 from libc.stdio cimport printf
-from libc.math cimport exp, abs
+from libc.math cimport exp, fabs
 
 
 
@@ -857,7 +857,7 @@ cdef class Splitter:
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
-            if abs( direction_sum / num_eras_float_ ) < blama :
+            if fabs( direction_sum / num_eras_float_ ) < blama :
                 continue
 
             n_samples_right = n_samples_ - n_samples_left
