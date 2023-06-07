@@ -25,7 +25,7 @@ from ._bitset cimport set_bitset
 from ._bitset cimport in_bitset
 
 from libc.stdio cimport printf
-from libc.math cimport exp
+from libc.math cimport exp, fabs
 
 
 
@@ -465,7 +465,8 @@ cdef class Splitter:
             const Y_DTYPE_C upper_bound=INFINITY,
             const unsigned int [:] allowed_features=None,
             Y_DTYPE_C boltzmann_alpha=0.,
-            Y_DTYPE_C gamma=0.
+            Y_DTYPE_C gamma=0.,
+            Y_DTYPE_C blama=0.
         ):
         """For each feature, find the best bin to split on at a given node.
 
@@ -614,7 +615,8 @@ cdef class Splitter:
                     era_sum_hessian_left[thread_id_],
                     era_sum_hessian_right[thread_id_],
                     era_node_values[thread_id_],
-                    gamma
+                    gamma,
+                    blama
                 )
                 '''
                 if has_missing_values[feature_idx]:
@@ -727,7 +729,8 @@ cdef class Splitter:
             Y_DTYPE_C* era_sum_hessian_left,
             Y_DTYPE_C* era_sum_hessian_right,
             Y_DTYPE_C* era_node_values,
-            Y_DTYPE_C gamma
+            Y_DTYPE_C gamma,
+            Y_DTYPE_C blama
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -778,6 +781,8 @@ cdef class Splitter:
             Y_DTYPE_C original_gain
 
             unsigned int have_full_eras = 0
+            Y_DTYPE_C value_direction
+            Y_DTYPE_C direction_sum
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -802,6 +807,8 @@ cdef class Splitter:
             boltzmann_numerator = 0.
             boltzmann_denominator = 0.
             have_full_eras = 1
+            direction_sum = 0.
+
             for era_idx in range(num_eras_):
                 n_samples_left += histograms[feature_idx, bin_idx, era_idx].count
                 sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].count
@@ -815,6 +822,26 @@ cdef class Splitter:
                 sum_gradient_left += histograms[feature_idx, bin_idx, era_idx].sum_gradients
                 
                 if era_sum_hessian_left[era_idx] > 0. and era_sum_hessian_right[era_idx] > 0.:
+
+                    value_direction = compute_node_value(
+                        era_sum_gradient_left[era_idx], 
+                        era_sum_hessian_left[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    ) - compute_node_value(
+                        era_sum_gradient_right[era_idx], 
+                        era_sum_hessian_right[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    )
+
+                    if value_direction > 0.:
+                        direction_sum += 1
+                    elif value_direction < 0.:
+                        direction_sum -= 1
+
                     era_gain = _split_gain(
                         era_sum_gradient_left[era_idx], 
                         era_sum_hessian_left[era_idx],
@@ -834,8 +861,8 @@ cdef class Splitter:
 
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
-            
-            if have_full_eras == 0:
+
+            if fabs( direction_sum / num_eras_float_ ) < blama or have_full_eras == 0:
                 continue
 
             n_samples_right = n_samples_ - n_samples_left
