@@ -2607,14 +2607,31 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                 g_view = gradient
                 h_view = hessian
 
+            #
+            #For Era Boosing
+            unique_eras = np.unique(eras)
+            correlation_values = np.empty(len(unique_eras))
+
+            for i, era in enumerate(unique_eras):
+                indices = np.where(eras == era)[0]
+                era_raw_predictions = raw_predictions[indices]
+                era_y_train = y_train[indices]
+                correlation_values[i] = np.corrcoef(era_raw_predictions, era_y_train)[0, 1]
+
+            percentile_50th = np.percentile(correlation_values, 50)
+            below_percentile_eras = unique_eras[correlation_values < percentile_50th]
+            below_percentile_indices = [idx for era in below_percentile_eras for idx in np.where(eras == era)[0]]
+
+
+
             # Build `n_trees_per_iteration` trees.
             for k in range(self.n_trees_per_iteration_):
                 #print( "residual size: ", np.mean( np.abs(g_view[:, k]) ) )
                 grower = EraTreeGrower(
-                    X_binned=X_binned_train,
-                    gradients=g_view[:, k],
-                    hessians=h_view[:, k],
-                    eras=eras,
+                    X_binned=X_binned_train[below_percentile_indices],
+                    gradients=g_view[below_percentile_indices, k],
+                    hessians=h_view[below_percentile_indices, k],
+                    eras=eras[below_percentile_indices],
                     n_bins=n_bins,
                     n_bins_non_missing=self._bin_mapper.n_bins_non_missing_,
                     has_missing_values=has_missing_values,
