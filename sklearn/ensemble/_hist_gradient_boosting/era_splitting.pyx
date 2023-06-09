@@ -862,7 +862,7 @@ cdef class Splitter:
                 boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
                 boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
-            if fabs( direction_sum / num_eras_float_ ) < blama or have_full_eras == 0:
+            if have_full_eras == 0:
                 continue
 
             n_samples_right = n_samples_ - n_samples_left
@@ -884,6 +884,7 @@ cdef class Splitter:
             gain = boltzmann_numerator / boltzmann_denominator
 
             if gamma > 0.:
+                #mix in era splitting gain with origin gain
 
                 original_gain = _split_gain(
                     sum_gradient_left, 
@@ -894,10 +895,15 @@ cdef class Splitter:
                     monotonic_cst,
                     lower_bound,
                     upper_bound,
-                    self.l2_regularization)
+                    self.l2_regularization
+                )
 
                 gain = ( 1 - gamma ) * gain + gamma * original_gain
+            
+            #mix in direction part of gain
+            gain = ( 1 - blama ) * gain + blama * fabs( direction_sum / num_eras_float_ )
 
+            #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:
                 found_better_split = True
                 best_gain = gain
