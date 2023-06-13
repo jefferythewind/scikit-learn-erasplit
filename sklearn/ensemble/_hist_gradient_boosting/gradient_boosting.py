@@ -137,7 +137,8 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
         tol,
         verbose,
         random_state,
-        colsample_bytree
+        colsample_bytree,
+        era_boosting
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -159,6 +160,7 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
         self.verbose = verbose
         self.random_state = random_state
         self.colsample_bytree = colsample_bytree
+        self.era_boosting = era_boosting
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -333,7 +335,7 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
 
         return constraints
 
-    def fit(self, X, y, sample_weight=None):
+    def fit(self, X, y, eras=None, sample_weight=None):
         """Fit the gradient boosting model.
 
         Parameters
@@ -670,12 +672,35 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
                 g_view = gradient
                 h_view = hessian
 
+            #
+            #For Era Boosing
+            # print(self.era_boosting)
+            if self.era_boosting == True:
+                unique_eras = np.unique(eras)
+                correlation_values = np.empty(len(unique_eras))
+
+                for i, era in enumerate(unique_eras):
+                    indices = np.where(eras == era)[0]
+                    era_raw_predictions = raw_predictions[indices].flatten()
+                    era_y_train = y_train[indices]
+                    correlation_values[i] = np.corrcoef(np.array([era_raw_predictions, era_y_train]))[0, 1]
+                    if np.isnan(correlation_values[i]):
+                        correlation_values[i] = 0
+
+                percentile_50th = np.percentile(correlation_values, 50)
+                below_percentile_eras = unique_eras[correlation_values < percentile_50th]
+                below_percentile_indices = [idx for era in below_percentile_eras for idx in np.where(eras == era)[0]]
+            else:
+                below_percentile_indices = list(range(y_train.shape[0]))
+
+            new_x_binned = X_binned_train[below_percentile_indices,:].ravel(order='F').reshape( ( len(below_percentile_indices), X_binned_train.shape[1]), order='F')
+  
             # Build `n_trees_per_iteration` trees.
             for k in range(self.n_trees_per_iteration_):
                 #print( "residual size: ", np.mean( np.abs(g_view[:, k]) ) )
                 grower = TreeGrower(
-                    X_binned=X_binned_train,
-                    gradients=g_view[:, k],
+                    X_binned=new_x_binned,
+                    gradients=g_view[below_percentile_indices, k],
                     hessians=h_view[:, k],
                     n_bins=n_bins,
                     n_bins_non_missing=self._bin_mapper.n_bins_non_missing_,
@@ -1439,6 +1464,7 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
         ],
         "quantile": [Interval(Real, 0, 1, closed="both"), None],
         "colsample_bytree":[Interval(Real, 0, 1, closed="right")],
+        "era_boosting":["boolean"],
     }
 
     def __init__(
@@ -1464,7 +1490,8 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
         tol=1e-7,
         verbose=0,
         random_state=None,
-        colsample_bytree=1.0
+        colsample_bytree=1.0,
+        era_boosting=False
     ):
         super(HistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -1486,7 +1513,8 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
             tol=tol,
             verbose=verbose,
             random_state=random_state,
-            colsample_bytree=colsample_bytree
+            colsample_bytree=colsample_bytree,
+            era_boosting=era_boosting
         )
         self.quantile = quantile
 

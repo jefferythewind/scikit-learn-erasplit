@@ -823,44 +823,51 @@ cdef class Splitter:
                 
                 if era_sum_hessian_left[era_idx] > 0. and era_sum_hessian_right[era_idx] > 0.:
 
-                    value_direction = compute_node_value(
-                        era_sum_gradient_left[era_idx], 
-                        era_sum_hessian_left[era_idx],
-                        lower_bound, 
-                        upper_bound, 
-                        self.l2_regularization
-                    ) - compute_node_value(
-                        era_sum_gradient_right[era_idx], 
-                        era_sum_hessian_right[era_idx],
-                        lower_bound, 
-                        upper_bound, 
-                        self.l2_regularization
-                    )
+                    if blama > 0:
+                        value_direction = compute_node_value(
+                            era_sum_gradient_left[era_idx], 
+                            era_sum_hessian_left[era_idx],
+                            lower_bound, 
+                            upper_bound, 
+                            self.l2_regularization
+                        ) - compute_node_value(
+                            era_sum_gradient_right[era_idx], 
+                            era_sum_hessian_right[era_idx],
+                            lower_bound, 
+                            upper_bound, 
+                            self.l2_regularization
+                        )
 
-                    if value_direction > 0.:
-                        direction_sum += 1
-                    elif value_direction < 0.:
-                        direction_sum -= 1
+                        if value_direction > 0.:
+                            direction_sum += 1
+                        elif value_direction < 0.:
+                            direction_sum -= 1
+                    else:
+                        direction_sum = 0
 
-                    era_gain = _split_gain(
-                        era_sum_gradient_left[era_idx], 
-                        era_sum_hessian_left[era_idx],
-                        era_sum_gradient_right[era_idx], 
-                        era_sum_hessian_right[era_idx],
-                        era_node_values[era_idx] * era_sum_gradients[era_idx],
-                        monotonic_cst,
-                        lower_bound,
-                        upper_bound,
-                        self.l2_regularization
-                    )
+                    if blama < 1 and gamma < 1:
+                        era_gain = _split_gain(
+                            era_sum_gradient_left[era_idx], 
+                            era_sum_hessian_left[era_idx],
+                            era_sum_gradient_right[era_idx], 
+                            era_sum_hessian_right[era_idx],
+                            era_node_values[era_idx] * era_sum_gradients[era_idx],
+                            monotonic_cst,
+                            lower_bound,
+                            upper_bound,
+                            self.l2_regularization
+                        )
+                        boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
+                        boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+                    else:
+                        era_gain = 0
+                        boltzmann_numerator += 0
+                        boltzmann_denominator += 1
 
                 else:
                     era_gain = 0.
                     have_full_eras = 0
                     break
-
-                boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
-                boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
             if have_full_eras == 0:
                 continue
