@@ -864,6 +864,11 @@ cdef class Splitter:
                 else:
                     era_gain = 0.
                     direction_sum += 0
+                    have_full_eras = 0
+                    break
+
+            if have_full_eras == 0:
+                continue
 
             boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
             boltzmann_denominator += exp( boltzmann_alpha * era_gain )
