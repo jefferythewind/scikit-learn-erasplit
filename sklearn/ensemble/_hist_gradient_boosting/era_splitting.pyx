@@ -843,8 +843,6 @@ cdef class Splitter:
                             direction_sum += 1
                         elif value_direction < 0.:
                             direction_sum -= 1
-                    else:
-                        direction_sum += 0
 
                     if blama < 1 and gamma < 1:
                         era_gain = _split_gain(
@@ -860,15 +858,9 @@ cdef class Splitter:
                         )
                         
                     else:
-                        era_gain = 0
+                        era_gain = 0.
                 else:
                     era_gain = 0.
-                    direction_sum += 0
-                    have_full_eras = 0
-                    break
-
-            if have_full_eras == 0:
-                continue
 
             boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
             boltzmann_denominator += exp( boltzmann_alpha * era_gain )
