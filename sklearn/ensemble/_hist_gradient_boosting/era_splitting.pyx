@@ -783,6 +783,7 @@ cdef class Splitter:
             unsigned int have_full_eras = 0
             Y_DTYPE_C value_direction
             Y_DTYPE_C direction_sum
+            Y_DTYPE_C blama_gain
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -843,7 +844,7 @@ cdef class Splitter:
                         elif value_direction < 0.:
                             direction_sum -= 1
                     else:
-                        direction_sum = 0
+                        direction_sum += 0
 
                     if blama < 1 and gamma < 1:
                         era_gain = _split_gain(
@@ -857,20 +858,15 @@ cdef class Splitter:
                             upper_bound,
                             self.l2_regularization
                         )
-                        boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
-                        boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+                        
                     else:
                         era_gain = 0
-                        boltzmann_numerator += 0
-                        boltzmann_denominator += 1
-
                 else:
                     era_gain = 0.
-                    have_full_eras = 0
-                    break
+                    direction_sum += 0
 
-            if have_full_eras == 0:
-                continue
+            boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
+            boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
@@ -904,11 +900,18 @@ cdef class Splitter:
                     upper_bound,
                     self.l2_regularization
                 )
+            else:
+                original_gain = 0
 
-                gain = ( 1 - gamma ) * gain + gamma * original_gain
+                #printf("[ %.5f, %.5f, %.5f ],\n", gain, original_gain, fabs( direction_sum / num_eras_float_ ) )
             
             #mix in direction part of gain
-            gain = ( 1 - blama ) * gain + blama * fabs( direction_sum / num_eras_float_ )
+            if blama > 0:
+                blama_gain = fabs( direction_sum / num_eras_float_ )
+            else:
+                blama_gain = 0
+            
+            gain = ( 1 - blama - gamma ) * gain + blama * blama_gain + gamma * original_gain
 
             #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:
