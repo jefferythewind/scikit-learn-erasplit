@@ -2070,7 +2070,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "colsample_bytree":[Interval(Real, 0, 1, closed="right")],
         "gamma": [Interval(Real, 0, 1, closed="both")],
         "blama": [Interval(Real, 0, 1, closed="both")],
-        "era_boosting": ["boolean"]
+        "era_boosting": ["boolean"],
+        "vanna": [Interval(Real, 0, 1, closed="both")],
     }
 
     @abstractmethod
@@ -2100,7 +2101,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         colsample_bytree,
         gamma,
         blama,
-        era_boosting
+        era_boosting,
+        vanna
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2126,6 +2128,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.gamma = gamma
         self.blama = blama
         self.era_boosting = era_boosting
+        self.vanna = vanna
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2685,7 +2688,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     boltzmann_alpha=self.boltzmann_alpha,
                     colsample_bytree=self.colsample_bytree,
                     gamma=self.gamma,
-                    blama=self.blama
+                    blama=self.blama,
+                    vanna=self.vanna
                 )
                 grower.grow()
 
@@ -3462,7 +3466,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         colsample_bytree=1.0,
         gamma=0.,
         blama=0.,
-        era_boosting=False
+        era_boosting=False,
+        vanna=0.
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3488,7 +3493,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             colsample_bytree=colsample_bytree,
             gamma=gamma,
             blama=blama,
-            era_boosting=era_boosting
+            era_boosting=era_boosting,
+            vanna=vanna
         )
         self.quantile = quantile
 

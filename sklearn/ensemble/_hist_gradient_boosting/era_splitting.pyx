@@ -466,7 +466,8 @@ cdef class Splitter:
             const unsigned int [:] allowed_features=None,
             Y_DTYPE_C boltzmann_alpha=0.,
             Y_DTYPE_C gamma=0.,
-            Y_DTYPE_C blama=0.
+            Y_DTYPE_C blama=0.,
+            Y_DTYPE_C vanna=0.
         ):
         """For each feature, find the best bin to split on at a given node.
 
@@ -557,7 +558,7 @@ cdef class Splitter:
 
             # split_info_idx is index of split_infos of size n_features_allowed
             # features_idx is the index of the feature column in X
-            for split_info_idx in prange( n_allowed_features, schedule='static', num_threads=n_threads):
+            for split_info_idx in prange( n_allowed_features, schedule='static', num_threads=1):#n_threads):
                 thread_id_ = threadid()
 
                 if has_interaction_cst:
@@ -616,7 +617,8 @@ cdef class Splitter:
                     era_sum_hessian_right[thread_id_],
                     era_node_values[thread_id_],
                     gamma,
-                    blama
+                    blama,
+                    vanna
                 )
                 '''
                 if has_missing_values[feature_idx]:
@@ -730,7 +732,8 @@ cdef class Splitter:
             Y_DTYPE_C* era_sum_hessian_right,
             Y_DTYPE_C* era_node_values,
             Y_DTYPE_C gamma,
-            Y_DTYPE_C blama
+            Y_DTYPE_C blama,
+            Y_DTYPE_C vanna
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -784,6 +787,22 @@ cdef class Splitter:
             Y_DTYPE_C value_direction
             Y_DTYPE_C direction_sum
             Y_DTYPE_C blama_gain
+
+            #for consistency term
+            Y_DTYPE_C left_value = 0.0
+            Y_DTYPE_C left_sum = 0.0
+            Y_DTYPE_C left_sumSquares = 0.0
+            Y_DTYPE_C left_mean = 0.0
+            Y_DTYPE_C left_variance = 0.0
+
+            Y_DTYPE_C right_value = 0.0
+            Y_DTYPE_C right_sum = 0.0
+            Y_DTYPE_C right_sumSquares = 0.0
+            Y_DTYPE_C right_mean = 0.0
+            Y_DTYPE_C right_variance = 0.0
+
+            Y_DTYPE_C vanna_gain
+
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -844,7 +863,29 @@ cdef class Splitter:
                         elif value_direction < 0.:
                             direction_sum -= 1
 
-                    if blama < 1 and gamma < 1:
+                    if vanna > 0:
+                        left_value = compute_node_value(
+                            era_sum_gradient_left[era_idx], 
+                            era_sum_hessian_left[era_idx],
+                            lower_bound, 
+                            upper_bound, 
+                            self.l2_regularization
+                        )
+                        left_sum += left_value
+                        left_sumSquares += left_value * left_value
+
+                        right_value = compute_node_value(
+                            era_sum_gradient_right[era_idx], 
+                            era_sum_hessian_right[era_idx],
+                            lower_bound, 
+                            upper_bound, 
+                            self.l2_regularization
+                        )
+                        right_sum += right_value
+                        right_sumSquares += right_value * right_value
+
+
+                    if blama + gamma + vanna < 1:
                         era_gain = _split_gain(
                             era_sum_gradient_left[era_idx], 
                             era_sum_hessian_left[era_idx],
@@ -856,6 +897,8 @@ cdef class Splitter:
                             upper_bound,
                             self.l2_regularization
                         )
+                    
+
                         
                     else:
                         era_gain = 0.
@@ -900,15 +943,29 @@ cdef class Splitter:
             else:
                 original_gain = 0
 
-                #printf("[ %.5f, %.5f, %.5f ],\n", gain, original_gain, fabs( direction_sum / num_eras_float_ ) )
+                
             
             #mix in direction part of gain
             if blama > 0:
                 blama_gain = fabs( direction_sum / num_eras_float_ )
             else:
                 blama_gain = 0
+
+            # for consistency term
+            if vanna > 0:
+                left_mean = left_sum / num_eras_float_
+                left_variance = (left_sumSquares / num_eras_float_) - (left_mean * left_mean)
+
+                right_mean = right_sum / num_eras_float_
+                right_variance = (right_sumSquares / num_eras_float_) - (right_mean * right_mean)
+
+                vanna_gain = - ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance )
+            else:
+                vanna_gain = 0.
             
-            gain = ( 1 - blama - gamma ) * gain + blama * blama_gain + gamma * original_gain
+            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
+
+            printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
 
             #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:

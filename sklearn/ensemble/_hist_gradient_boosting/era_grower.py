@@ -264,7 +264,8 @@ class EraTreeGrower:
         boltzmann_alpha=0.0,
         colsample_bytree=1.0,
         gamma=0.,
-        blama=0.
+        blama=0.,
+        vanna=0.
     ):
         
         self._validate_parameters(
@@ -278,6 +279,7 @@ class EraTreeGrower:
         self.colsample_bytree = colsample_bytree
         self.gamma = gamma
         self.blama = blama
+        self.vanna = vanna
 
         if n_bins_non_missing is None:
             n_bins_non_missing = n_bins - 1
@@ -535,7 +537,8 @@ class EraTreeGrower:
             allowed_features=node.allowed_features,
             boltzmann_alpha=self.boltzmann_alpha,
             gamma=self.gamma,
-            blama=self.blama
+            blama=self.blama,
+            vanna=self.vanna
         )
 
         if node.split_info.gain <= 0:  # no valid split
