@@ -467,7 +467,8 @@ cdef class Splitter:
             Y_DTYPE_C boltzmann_alpha=0.,
             Y_DTYPE_C gamma=0.,
             Y_DTYPE_C blama=0.,
-            Y_DTYPE_C vanna=0.
+            Y_DTYPE_C vanna=0.,
+            bool gain_debug
         ):
         """For each feature, find the best bin to split on at a given node.
 
@@ -618,7 +619,8 @@ cdef class Splitter:
                     era_node_values[thread_id_],
                     gamma,
                     blama,
-                    vanna
+                    vanna,
+                    gain_debug
                 )
                 '''
                 if has_missing_values[feature_idx]:
@@ -733,7 +735,8 @@ cdef class Splitter:
             Y_DTYPE_C* era_node_values,
             Y_DTYPE_C gamma,
             Y_DTYPE_C blama,
-            Y_DTYPE_C vanna
+            Y_DTYPE_C vanna,
+            bool gain_debug
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
@@ -802,6 +805,8 @@ cdef class Splitter:
             Y_DTYPE_C right_variance = 0.0
 
             Y_DTYPE_C vanna_gain
+
+            Y_DTYPE_C small_number = 0.00000000001
 
             
         n_samples_left = 0
@@ -924,7 +929,7 @@ cdef class Splitter:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
 
-            gain = boltzmann_numerator / boltzmann_denominator
+            gain = log( small_number + boltzmann_numerator / boltzmann_denominator )
 
             if gamma > 0.:
                 #mix in era splitting gain with origin gain
@@ -940,6 +945,7 @@ cdef class Splitter:
                     upper_bound,
                     self.l2_regularization
                 )
+                original_gain = log( small_number + original_gain )
             else:
                 original_gain = 0
 
@@ -947,7 +953,7 @@ cdef class Splitter:
             
             #mix in direction part of gain
             if blama > 0:
-                blama_gain = fabs( direction_sum / num_eras_float_ )
+                blama_gain = log( small_number + fabs( direction_sum / num_eras_float_ ) )
             else:
                 blama_gain = 0
 
@@ -959,13 +965,14 @@ cdef class Splitter:
                 right_mean = right_sum / num_eras_float_
                 right_variance = (right_sumSquares / num_eras_float_) - (right_mean * right_mean)
 
-                vanna_gain = log(1 + 1 / ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance ) )
+                vanna_gain = log(small_number + 1. / ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance ) )
             else:
                 vanna_gain = 0.
             
             gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
 
-            #printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
+            if gain_debug == True:
+                printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
 
             #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:

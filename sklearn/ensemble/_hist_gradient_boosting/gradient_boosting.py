@@ -2072,6 +2072,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "blama": [Interval(Real, 0, 1, closed="both")],
         "era_boosting": ["boolean"],
         "vanna": [Interval(Real, 0, 1, closed="both")],
+        "gain_debug": ["boolean"],
     }
 
     @abstractmethod
@@ -2102,7 +2103,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         gamma,
         blama,
         era_boosting,
-        vanna
+        vanna,
+        gain_debug
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2129,6 +2131,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.blama = blama
         self.era_boosting = era_boosting
         self.vanna = vanna
+        self.gain_debug = gain_debug
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2689,7 +2692,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     colsample_bytree=self.colsample_bytree,
                     gamma=self.gamma,
                     blama=self.blama,
-                    vanna=self.vanna
+                    vanna=self.vanna,
+                    gain_debug=self.gain_debug
                 )
                 grower.grow()
 
@@ -3467,7 +3471,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         gamma=0.,
         blama=0.,
         era_boosting=False,
-        vanna=0.
+        vanna=0.,
+        gain_debug=False,
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3494,7 +3499,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             gamma=gamma,
             blama=blama,
             era_boosting=era_boosting,
-            vanna=vanna
+            vanna=vanna,
+            gain_debug=gain_debug
         )
         self.quantile = quantile
 
