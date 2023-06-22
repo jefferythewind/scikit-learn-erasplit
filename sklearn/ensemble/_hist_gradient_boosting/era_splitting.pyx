@@ -468,7 +468,7 @@ cdef class Splitter:
             Y_DTYPE_C gamma=0.,
             Y_DTYPE_C blama=0.,
             Y_DTYPE_C vanna=0.,
-            bool gain_debug
+            bint gain_debug=False,
         ):
         """For each feature, find the best bin to split on at a given node.
 
@@ -736,7 +736,7 @@ cdef class Splitter:
             Y_DTYPE_C gamma,
             Y_DTYPE_C blama,
             Y_DTYPE_C vanna,
-            bool gain_debug
+            bint gain_debug
         ) noexcept nogil: 
         """Find best bin to split on for a given feature.
 
