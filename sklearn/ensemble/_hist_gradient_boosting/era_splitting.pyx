@@ -25,7 +25,7 @@ from ._bitset cimport set_bitset
 from ._bitset cimport in_bitset
 
 from libc.stdio cimport printf
-from libc.math cimport exp, fabs
+from libc.math cimport exp, fabs, log
 
 
 
@@ -558,7 +558,7 @@ cdef class Splitter:
 
             # split_info_idx is index of split_infos of size n_features_allowed
             # features_idx is the index of the feature column in X
-            for split_info_idx in prange( n_allowed_features, schedule='static', num_threads=1):#n_threads):
+            for split_info_idx in prange( n_allowed_features, schedule='static', num_threads=n_threads):
                 thread_id_ = threadid()
 
                 if has_interaction_cst:
@@ -959,13 +959,13 @@ cdef class Splitter:
                 right_mean = right_sum / num_eras_float_
                 right_variance = (right_sumSquares / num_eras_float_) - (right_mean * right_mean)
 
-                vanna_gain = - ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance )
+                vanna_gain = log(1 + 1 / ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance ) )
             else:
                 vanna_gain = 0.
             
             gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
 
-            printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
+            #printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
 
             #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:
