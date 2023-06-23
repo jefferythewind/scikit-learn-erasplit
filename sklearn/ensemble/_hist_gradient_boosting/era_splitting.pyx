@@ -834,6 +834,11 @@ cdef class Splitter:
             have_full_eras = 1
             direction_sum = 0.
 
+            left_sum = 0.0
+            left_sumSquares = 0.0
+            right_sum = 0.0
+            right_sumSquares = 0.0
+
             for era_idx in range(num_eras_):
                 n_samples_left += histograms[feature_idx, bin_idx, era_idx].count
                 sum_hessian_left += histograms[feature_idx, bin_idx, era_idx].count
@@ -968,11 +973,13 @@ cdef class Splitter:
                 vanna_gain = log(small_number + 1. / ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance ) )
             else:
                 vanna_gain = 0.
-            
-            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
 
             if gain_debug == True:
                 printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
+            
+            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
+
+            
 
             #check if we found a better gain
             if gain > best_gain and gain > self.min_gain_to_split:
