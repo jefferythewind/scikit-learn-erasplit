@@ -779,7 +779,7 @@ cdef class Splitter:
             unsigned int best_bin_idx
             unsigned int best_n_samples_left
 
-            Y_DTYPE_C best_gain = -1
+            Y_DTYPE_C best_gain = -1000000000
 
             Y_DTYPE_C boltzmann_numerator
             Y_DTYPE_C boltzmann_denominator
@@ -982,7 +982,7 @@ cdef class Splitter:
             
 
             #check if we found a better gain
-            if gain > best_gain and gain > self.min_gain_to_split:
+            if gain > best_gain:
                 found_better_split = True
                 best_gain = gain
                 best_bin_idx = bin_idx
