@@ -806,7 +806,7 @@ cdef class Splitter:
 
             Y_DTYPE_C vanna_gain
 
-            Y_DTYPE_C small_number = 0.00000000001
+            Y_DTYPE_C small_number = 1 #0.00000000001
 
             
         n_samples_left = 0
@@ -977,9 +977,7 @@ cdef class Splitter:
             if gain_debug == True:
                 printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
             
-            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain
-
-            
+            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain            
 
             #check if we found a better gain
             if gain > best_gain:
