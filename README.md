@@ -73,6 +73,14 @@ Example, if I wanted 50% era splitting and 50% direcitonal era splitting, I woul
 
 # Complete Code Notebook Examples Available here:
 
+https://github.com/jefferythewind/era-splitting-notebook-examples
+
 # Citations:
 
+````
+(coming soon)
+````
+
 This code was forked from the official scikit-learn repository and is currently a stand-alone version. All community help is welcome for getting these ideas part of the official scikit learn code base or even better, incorporated in the LightGBM code base.
+
+https://scikit-learn.org/stable/about.html#citing-scikit-learn
