@@ -1,5 +1,6 @@
 This is the official code base for Era Splitting, the subject of a recent research paper. Using this repository you can install and run the HistGradientBoostingRegressor with the new era splitting or directional era splitting criteria implemented via simple arguments.
 
+Era Splitting Paper: https://arxiv.org/abs/2309.14496
 
 # Installation
 
@@ -78,7 +79,14 @@ https://github.com/jefferythewind/era-splitting-notebook-examples
 # Citations:
 
 ````
-(coming soon)
+@misc{delise2023era,
+      title={Era Splitting}, 
+      author={Timothy DeLise},
+      year={2023},
+      eprint={2309.14496},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
 ````
 
 This code was forked from the official scikit-learn repository and is currently a stand-alone version. All community help is welcome for getting these ideas part of the official scikit learn code base or even better, incorporated in the LightGBM code base.
