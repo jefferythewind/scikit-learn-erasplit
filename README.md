@@ -13,7 +13,7 @@ git clone https://github.com/jefferythewind/scikit-learn-erasplit.git
 ## Install via Pip
 
 ```
-cd scikit-learn/
+cd scikit-learn-erasplit/
 pip install .
 ```
 
