@@ -915,8 +915,8 @@ cdef class Splitter:
                 else:
                     era_gain = 0.
 
-            boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
-            boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+                boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
+                boltzmann_denominator += exp( boltzmann_alpha * era_gain )
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
