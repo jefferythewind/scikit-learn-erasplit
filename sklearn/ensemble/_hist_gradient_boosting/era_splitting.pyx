@@ -907,8 +907,6 @@ cdef class Splitter:
                             upper_bound,
                             self.l2_regularization
                         )
-                    
-
                         
                     else:
                         era_gain = 0.
