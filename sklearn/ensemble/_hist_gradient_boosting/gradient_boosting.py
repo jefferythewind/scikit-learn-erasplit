@@ -2073,6 +2073,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "era_boosting": ["boolean"],
         "vanna": [Interval(Real, 0, 1, closed="both")],
         "gain_debug": ["boolean"],
+        "n_jobs": [Interval(Integral, 1, 16, closed="left"), None]
     }
 
     @abstractmethod
@@ -2104,7 +2105,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         blama,
         era_boosting,
         vanna,
-        gain_debug
+        gain_debug,
+        n_jobs
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2132,6 +2134,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.era_boosting = era_boosting
         self.vanna = vanna
         self.gain_debug = gain_debug
+        self.n_jobs = n_jobs
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2379,7 +2382,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
 
         # `_openmp_effective_n_threads` is used to take cgroups CPU quotes
         # into account when determine the maximum number of threads to use.
-        n_threads = _openmp_effective_n_threads()
+        n_threads = self.n_jobs#_openmp_effective_n_threads()
 
         if isinstance(self.loss, str):
             self._loss = self._get_loss(sample_weight=sample_weight)
@@ -3473,6 +3476,7 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         era_boosting=False,
         vanna=0.,
         gain_debug=False,
+        n_jobs=1
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3500,7 +3504,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             blama=blama,
             era_boosting=era_boosting,
             vanna=vanna,
-            gain_debug=gain_debug
+            gain_debug=gain_debug,
+            n_jobs=n_jobs
         )
         self.quantile = quantile
 
