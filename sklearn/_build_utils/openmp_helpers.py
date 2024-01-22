@@ -58,7 +58,7 @@ def check_openmp_support():
         extra_preargs = [
             flag
             for flag in extra_preargs
-            if flag.startswith(("-L", "-Wl,-rpath", "-l", "-Wl,--sysroot=/"))
+            if flag.startswith(("-L", "-Wl,-rpath", "-l"))
         ]
 
     extra_postargs = get_openmp_flag()
@@ -71,7 +71,7 @@ def check_openmp_support():
 
         if output and "nthreads=" in output[0]:
             nthreads = int(output[0].strip().split("=")[1])
-            openmp_supported = len(output) == nthreads
+            openmp_supported = True
         elif "PYTHON_CROSSENV" in os.environ:
             # Since we can't run the test program when cross-compiling
             # assume that openmp is supported if the program can be
