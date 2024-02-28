@@ -1,4 +1,4 @@
-This is the official code base for Era Splitting, the subject of a recent research paper. Using this repository you can install and run the HistGradientBoostingRegressor with the new era splitting or directional era splitting criteria implemented via simple arguments.
+This is the official code base for Era Splitting. Using this repository you can install and run the EraHistGradientBoostingRegressor with the new **era splitting**, **directional era splitting**, or original criterion implemented via simple arguments.
 
 Era Splitting Paper: https://arxiv.org/abs/2309.14496
 
@@ -49,30 +49,34 @@ model = EraHistGradientBoostingRegressor(
     learning_rate=.01, 
     colsample_bytree=.1, 
     max_leaf_nodes=32, 
-    gamma=0, #for era splitting
-    blama=0  #for directional era splitting
+    gamma=1, #for era splitting
+    #blama=1,  #for directional era splitting
+    #vanna=1,  #for original splitting criterion
 )
 model.fit(training_data[ features ], training_data[ TARGET_COL ], training_data['era'].values)
 ```
 
 ## Explanation of Parameters
 ### Boltzmann Alpha
-The Boltzmann alpha parameter varies from -infinity to +infinity. A value of zero recovers the mean, -infinity recovers the minumum and +infinity recovers the maximum. This smooth min/max function is applied to the era-wise impurity scores when evaluating a data split. For all the experiments in the paper, we use the default setting of alpha=0. 
+The Boltzmann alpha parameter varies from -infinity to +infinity. A value of zero recovers the mean, -infinity recovers the minumum and +infinity recovers the maximum. This smooth min/max function is applied to the era-wise impurity scores when evaluating a data split. Negative values here will build more invariant trees.
 
 Read more: https://en.wikipedia.org/wiki/Smooth_maximum
+
 ### Gamma
-The Gamma parameter varies over the interval [0,1]. This tells us how much of the original splitting criterion to mix in with the era splitting criterion. The default setting of zero means we want to use 100% the era splitting criterion. If we give a value of 0.5, that means our split criterion will be 50% the era splitting criterion and 50% the original splitting criterion. For our state of the art Numerai model, we used a value of 0.6 here.
+Varies over the interval [0,1]. Indicates weight placed on the  era splitting criterion.
 
 ### Blama
-The Blama parameter is similar to the Gamma parameter, but here we measure how much of the directional splitting criterion we want to mix in to our model. If we want pure directional era splitting, which is common in the research paper, we set Blama = 1.
+Varies over the interval [0,1]. Indicates weight placed on the directional era splitting criterion.
 
-One can also mix the era splitting and directional era splitting criteria via the following formula
+### Vanna
+Varies over the interval [0,1]. Indicates weight placed on the original splitting criterion.
+
+Behind the scenes, this is for formula which creates a linear combination of the split criteria. Usually we just set one of these to 1 and leave the other at zero.
 ```python
-gain = ( 1 - blama - gamma ) * era_split_gain + blama * directional_era_split_gain + gamma * original_gain
+gain = gamma * era_split_gain + blama * directional_era_split_gain + vanna * original_gain
 ```
-Example, if I wanted 50% era splitting and 50% direcitonal era splitting, I would set Blama = 0.5. If we want 50% original splitting criterion and 50% directional era splitting criterion, then we would set Blama = 0.5 and Gamma = 0.5.
 
-# Complete Code Notebook Examples Available here:
+# Complete (New Updated) Code Notebook Examples Available here:
 
 https://github.com/jefferythewind/era-splitting-notebook-examples
 
