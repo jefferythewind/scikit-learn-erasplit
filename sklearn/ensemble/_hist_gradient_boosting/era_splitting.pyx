@@ -779,7 +779,7 @@ cdef class Splitter:
             unsigned int best_bin_idx
             unsigned int best_n_samples_left
 
-            Y_DTYPE_C best_gain = -1000000000
+            Y_DTYPE_C best_gain = 0
 
             Y_DTYPE_C boltzmann_numerator
             Y_DTYPE_C boltzmann_denominator
@@ -873,29 +873,7 @@ cdef class Splitter:
                         elif value_direction < 0.:
                             direction_sum -= 1
 
-                    if vanna > 0:
-                        left_value = compute_node_value(
-                            era_sum_gradient_left[era_idx], 
-                            era_sum_hessian_left[era_idx],
-                            lower_bound, 
-                            upper_bound, 
-                            self.l2_regularization
-                        )
-                        left_sum += left_value
-                        left_sumSquares += left_value * left_value
-
-                        right_value = compute_node_value(
-                            era_sum_gradient_right[era_idx], 
-                            era_sum_hessian_right[era_idx],
-                            lower_bound, 
-                            upper_bound, 
-                            self.l2_regularization
-                        )
-                        right_sum += right_value
-                        right_sumSquares += right_value * right_value
-
-
-                    if blama + gamma + vanna < 1:
+                    if gamma > 0:
                         era_gain = _split_gain(
                             era_sum_gradient_left[era_idx], 
                             era_sum_hessian_left[era_idx],
@@ -907,14 +885,14 @@ cdef class Splitter:
                             upper_bound,
                             self.l2_regularization
                         )
-                        
-                    else:
-                        era_gain = 0.
+                        boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
+                        boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+                    
                 else:
-                    era_gain = 0.
+                    have_full_eras = 0
 
-                boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
-                boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+            if have_full_eras == 0:
+                continue
 
             n_samples_right = n_samples_ - n_samples_left
             sum_hessian_right = sum_hessians - sum_hessian_left
@@ -932,11 +910,12 @@ cdef class Splitter:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
 
-            gain = log( small_number + boltzmann_numerator / boltzmann_denominator )
+            if gamma > 0:
+                gain = boltzmann_numerator / boltzmann_denominator
+            else:
+                gain = 0
 
-            if gamma > 0.:
-                #mix in era splitting gain with origin gain
-
+            if vanna > 0:
                 original_gain = _split_gain(
                     sum_gradient_left, 
                     sum_hessian_left,
@@ -948,34 +927,18 @@ cdef class Splitter:
                     upper_bound,
                     self.l2_regularization
                 )
-                original_gain = log( small_number + original_gain )
             else:
                 original_gain = 0
 
-                
-            
-            #mix in direction part of gain
             if blama > 0:
-                blama_gain = log( small_number + fabs( direction_sum / num_eras_float_ ) )
+                blama_gain = fabs( direction_sum / num_eras_float_ )
             else:
                 blama_gain = 0
 
-            # for consistency term
-            if vanna > 0:
-                left_mean = left_sum / num_eras_float_
-                left_variance = (left_sumSquares / num_eras_float_) - (left_mean * left_mean)
-
-                right_mean = right_sum / num_eras_float_
-                right_variance = (right_sumSquares / num_eras_float_) - (right_mean * right_mean)
-
-                vanna_gain = log(small_number + 1. / ( ( sum_hessian_left/sum_hessians ) * left_variance + ( sum_hessian_right/sum_hessians ) * right_variance ) )
-            else:
-                vanna_gain = 0.
-
             if gain_debug == True:
-                printf("[ %.5f, %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain, vanna_gain )
+                printf("[ %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain )
             
-            gain = ( 1 - blama - gamma - vanna ) * gain + blama * blama_gain + gamma * original_gain + vanna * vanna_gain            
+            gain = gamma * gain + blama * blama_gain + vanna * original_gain          
 
             #check if we found a better gain
             if gain > best_gain:
