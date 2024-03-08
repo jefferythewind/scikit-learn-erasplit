@@ -3462,7 +3462,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         monotonic_cst=None,
         interaction_cst=None,
         warm_start=False,
-        early_stopping="auto",
+        # early_stopping="auto",
+        early_stopping=False,
         scoring="loss",
         validation_fraction=0.1,
         n_iter_no_change=10,
@@ -3476,7 +3477,7 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         era_boosting=False,
         vanna=0.,
         gain_debug=False,
-        n_jobs=1
+        n_jobs=8
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
