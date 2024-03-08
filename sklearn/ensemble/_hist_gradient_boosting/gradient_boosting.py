@@ -2073,7 +2073,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "era_boosting": ["boolean"],
         "vanna": [Interval(Real, 0, 1, closed="both")],
         "gain_debug": ["boolean"],
-        "n_jobs": [Interval(Integral, 1, 16, closed="left"), None]
+        "n_jobs": [Interval(Integral, 1, 16, closed="both"), None]
     }
 
     @abstractmethod
