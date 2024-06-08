@@ -808,6 +808,9 @@ cdef class Splitter:
 
             Y_DTYPE_C small_number = 1 #0.00000000001
 
+            Y_DTYPE_C best_tiebreak_gain
+            Y_DTYPE_C erasplit_gain
+
             
         n_samples_left = 0
         sum_gradient_left, sum_hessian_left = 0., 0.
@@ -853,40 +856,38 @@ cdef class Splitter:
                 
                 if era_sum_hessian_left[era_idx] > 0. and era_sum_hessian_right[era_idx] > 0.:
 
-                    if blama > 0:
-                        value_direction = compute_node_value(
-                            era_sum_gradient_left[era_idx], 
-                            era_sum_hessian_left[era_idx],
-                            lower_bound, 
-                            upper_bound, 
-                            self.l2_regularization
-                        ) - compute_node_value(
-                            era_sum_gradient_right[era_idx], 
-                            era_sum_hessian_right[era_idx],
-                            lower_bound, 
-                            upper_bound, 
-                            self.l2_regularization
-                        )
+                    value_direction = compute_node_value(
+                        era_sum_gradient_left[era_idx], 
+                        era_sum_hessian_left[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    ) - compute_node_value(
+                        era_sum_gradient_right[era_idx], 
+                        era_sum_hessian_right[era_idx],
+                        lower_bound, 
+                        upper_bound, 
+                        self.l2_regularization
+                    )
 
-                        if value_direction > 0.:
-                            direction_sum += 1
-                        elif value_direction < 0.:
-                            direction_sum -= 1
+                    if value_direction > 0.:
+                        direction_sum += 1
+                    elif value_direction < 0.:
+                        direction_sum -= 1
 
-                    if gamma > 0:
-                        era_gain = _split_gain(
-                            era_sum_gradient_left[era_idx], 
-                            era_sum_hessian_left[era_idx],
-                            era_sum_gradient_right[era_idx], 
-                            era_sum_hessian_right[era_idx],
-                            era_node_values[era_idx] * era_sum_gradients[era_idx],
-                            monotonic_cst,
-                            lower_bound,
-                            upper_bound,
-                            self.l2_regularization
-                        )
-                        boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
-                        boltzmann_denominator += exp( boltzmann_alpha * era_gain )
+                    era_gain = _split_gain(
+                        era_sum_gradient_left[era_idx], 
+                        era_sum_hessian_left[era_idx],
+                        era_sum_gradient_right[era_idx], 
+                        era_sum_hessian_right[era_idx],
+                        era_node_values[era_idx] * era_sum_gradients[era_idx],
+                        monotonic_cst,
+                        lower_bound,
+                        upper_bound,
+                        self.l2_regularization
+                    )
+                    boltzmann_numerator += era_gain * exp( boltzmann_alpha * era_gain )
+                    boltzmann_denominator += exp( boltzmann_alpha * era_gain )
                     
                 else:
                     have_full_eras = 0
@@ -910,35 +911,26 @@ cdef class Splitter:
                 # won't get any better (hessians are > 0 since loss is convex)
                 break
 
-            if gamma > 0:
-                gain = boltzmann_numerator / boltzmann_denominator
-            else:
-                gain = 0
+            erasplit_gain = boltzmann_numerator / boltzmann_denominator
 
-            if vanna > 0:
-                original_gain = _split_gain(
-                    sum_gradient_left, 
-                    sum_hessian_left,
-                    sum_gradient_right, 
-                    sum_hessian_right,
-                    loss_current_node,
-                    monotonic_cst,
-                    lower_bound,
-                    upper_bound,
-                    self.l2_regularization
-                )
-            else:
-                original_gain = 0
+            original_gain = _split_gain(
+                sum_gradient_left, 
+                sum_hessian_left,
+                sum_gradient_right, 
+                sum_hessian_right,
+                loss_current_node,
+                monotonic_cst,
+                lower_bound,
+                upper_bound,
+                self.l2_regularization
+            )
 
-            if blama > 0:
-                blama_gain = fabs( direction_sum / num_eras_float_ )
-            else:
-                blama_gain = 0
+            blama_gain = fabs( direction_sum / num_eras_float_ )
+            
+            gain = gamma * erasplit_gain + blama * blama_gain + vanna * original_gain
 
             if gain_debug == True:
-                printf("[ %.5f, %.5f, %.5f ],\n", gain, original_gain, blama_gain )
-            
-            gain = gamma * gain + blama * blama_gain + vanna * original_gain          
+                printf("[ gain %.5f, erasplit_gain %.5f, original %.5f, blama %.5f ],\n", gain, erasplit_gain, original_gain, blama_gain )
 
             #check if we found a better gain
             if gain > best_gain:
@@ -948,6 +940,15 @@ cdef class Splitter:
                 best_sum_gradient_left = sum_gradient_left
                 best_sum_hessian_left = sum_hessian_left
                 best_n_samples_left = n_samples_left
+                best_tiebreak_gain = 0
+            elif gain == best_gain:
+                if erasplit_gain > best_tiebreak_gain:
+                    found_better_split = True
+                    best_bin_idx = bin_idx
+                    best_sum_gradient_left = sum_gradient_left
+                    best_sum_hessian_left = sum_hessian_left
+                    best_n_samples_left = n_samples_left
+                    best_tiebreak_gain = erasplit_gain
 
         if found_better_split:
             split_info.gain = best_gain
