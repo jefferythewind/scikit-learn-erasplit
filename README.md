@@ -7,7 +7,7 @@ Era Splitting Paper: https://arxiv.org/abs/2309.14496
 ## Clone the Repo
 
 ```
-git clone https://github.com/jefferythewind/scikit-learn-erasplit.git
+git clone --single-branch --branch era_splitting-tiebreaker https://github.com/jefferythewind/scikit-learn-erasplit.git
 ```
 
 ## Install via Pip
