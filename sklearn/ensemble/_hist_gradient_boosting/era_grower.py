@@ -267,6 +267,7 @@ class EraTreeGrower:
         blama=0.,
         vanna=0.,
         gain_debug=False,
+        min_agreement_threshold=0
     ):
         
         self._validate_parameters(
@@ -282,6 +283,7 @@ class EraTreeGrower:
         self.blama = blama
         self.vanna = vanna
         self.gain_debug=gain_debug
+        self.min_agreement_threshold = min_agreement_threshold
 
         if n_bins_non_missing is None:
             n_bins_non_missing = n_bins - 1
@@ -348,6 +350,7 @@ class EraTreeGrower:
             min_gain_to_split,
             hessians_are_constant,
             n_threads,
+            self.min_agreement_threshold
         )
         self.n_bins_non_missing = n_bins_non_missing
         self.missing_values_bin_idx = missing_values_bin_idx

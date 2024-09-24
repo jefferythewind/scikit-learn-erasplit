@@ -212,6 +212,7 @@ cdef class Splitter:
         unsigned int [::1] left_indices_buffer
         unsigned int [::1] right_indices_buffer
         int n_threads
+        Y_DTYPE_C min_agreement_threshold
 
     def __init__(self,
                  const X_BINNED_DTYPE_C [::1, :] X_binned,
@@ -225,7 +226,8 @@ cdef class Splitter:
                  unsigned int min_samples_leaf=20,
                  Y_DTYPE_C min_gain_to_split=0.,
                  unsigned char hessians_are_constant=False,
-                 unsigned int n_threads=1):
+                 unsigned int n_threads=1,
+                 Y_DTYPE_C min_agreement_threshold=0):
 
         self.X_binned = X_binned
         self.n_features = X_binned.shape[1]
@@ -240,6 +242,7 @@ cdef class Splitter:
         self.min_gain_to_split = min_gain_to_split
         self.hessians_are_constant = hessians_are_constant
         self.n_threads = n_threads
+        self.min_agreement_threshold = min_agreement_threshold
 
         # The partition array maps each sample index into the leaves of the
         # tree (a leaf in this context is a node that isn't split yet, not
@@ -926,6 +929,9 @@ cdef class Splitter:
             )
 
             blama_gain = fabs( direction_sum / num_eras_float_ )
+
+            if blama_gain < self.min_agreement_threshold:
+                blama_gain = 0
             
             gain = gamma * erasplit_gain + blama * blama_gain + vanna * original_gain
 
@@ -941,7 +947,7 @@ cdef class Splitter:
                 best_sum_hessian_left = sum_hessian_left
                 best_n_samples_left = n_samples_left
                 best_tiebreak_gain = 0
-            elif gain == best_gain:
+            elif gain == best_gain and gain > 0:
                 if erasplit_gain > best_tiebreak_gain:
                     found_better_split = True
                     best_bin_idx = bin_idx

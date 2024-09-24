@@ -2073,7 +2073,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         "era_boosting": ["boolean"],
         "vanna": [Interval(Real, 0, 1, closed="both")],
         "gain_debug": ["boolean"],
-        "n_jobs": [Interval(Integral, 1, 16, closed="both"), None]
+        "n_jobs": [Interval(Integral, 1, 16, closed="both"), None],
+        "min_agreement_threshold": [Interval(Real, 0, 1, closed="both")]
     }
 
     @abstractmethod
@@ -2106,7 +2107,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         era_boosting,
         vanna,
         gain_debug,
-        n_jobs
+        n_jobs,
+        min_agreement_threshold
     ):
         self.loss = loss
         self.learning_rate = learning_rate
@@ -2135,6 +2137,7 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
         self.vanna = vanna
         self.gain_debug = gain_debug
         self.n_jobs = n_jobs
+        self.min_agreement_threshold = min_agreement_threshold
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -2382,7 +2385,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
 
         # `_openmp_effective_n_threads` is used to take cgroups CPU quotes
         # into account when determine the maximum number of threads to use.
-        n_threads = self.n_jobs#_openmp_effective_n_threads()
+        n_threads = _openmp_effective_n_threads(self.n_jobs)
+        print("N Threads: ", n_threads)
 
         if isinstance(self.loss, str):
             self._loss = self._get_loss(sample_weight=sample_weight)
@@ -2696,7 +2700,8 @@ class BaseEraHistGradientBoosting(BaseEstimator, ABC):
                     gamma=self.gamma,
                     blama=self.blama,
                     vanna=self.vanna,
-                    gain_debug=self.gain_debug
+                    gain_debug=self.gain_debug,
+                    min_agreement_threshold=self.min_agreement_threshold
                 )
                 grower.grow()
 
@@ -3477,7 +3482,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
         era_boosting=False,
         vanna=0.,
         gain_debug=False,
-        n_jobs=8
+        n_jobs=8,
+        min_agreement_threshold=0
     ):
         super(EraHistGradientBoostingRegressor, self).__init__(
             loss=loss,
@@ -3506,7 +3512,8 @@ class EraHistGradientBoostingRegressor(RegressorMixin, BaseEraHistGradientBoosti
             era_boosting=era_boosting,
             vanna=vanna,
             gain_debug=gain_debug,
-            n_jobs=n_jobs
+            n_jobs=n_jobs,
+            min_agreement_threshold=min_agreement_threshold
         )
         self.quantile = quantile
 
