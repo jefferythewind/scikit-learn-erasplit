@@ -81,14 +81,8 @@ else:
     from sklearn.utils._show_versions import show_versions
 
     __all__ = [
-        "dummy",
         "ensemble",
-        "externals",
-        "exceptions",
-        "metrics",
-        "model_selection",
         # Non-modules:
-        "clone",
         "get_config",
         "set_config",
         "config_context",
