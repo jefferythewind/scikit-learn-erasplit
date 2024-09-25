@@ -198,17 +198,6 @@ extension_config = {
     "_loss": [
         {"sources": ["_loss.pyx.tp"]},
     ],
-    "datasets": [
-        {
-            "sources": ["_svmlight_format_fast.pyx"],
-            "include_np": True,
-            "compile_for_pypy": False,
-        }
-    ],
-    "decomposition": [
-        {"sources": ["_online_lda_fast.pyx"], "include_np": True},
-        {"sources": ["_cdnmf_fast.pyx"], "include_np": True},
-    ],
     "ensemble": [
         {"sources": ["_gradient_boosting.pyx"], "include_np": True},
     ],
