@@ -198,14 +198,6 @@ extension_config = {
     "_loss": [
         {"sources": ["_loss.pyx.tp"]},
     ],
-    "cluster": [
-        {"sources": ["_dbscan_inner.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_hierarchical_fast.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_k_means_common.pyx"], "include_np": True},
-        {"sources": ["_k_means_lloyd.pyx"], "include_np": True},
-        {"sources": ["_k_means_elkan.pyx"], "include_np": True},
-        {"sources": ["_k_means_minibatch.pyx"], "include_np": True},
-    ],
     "datasets": [
         {
             "sources": ["_svmlight_format_fast.pyx"],
@@ -231,9 +223,6 @@ extension_config = {
         {"sources": ["_bitset.pyx"], "include_np": True},
         {"sources": ["common.pyx"], "include_np": True},
         {"sources": ["utils.pyx"], "include_np": True},
-    ],
-    "feature_extraction": [
-        {"sources": ["_hashing_fast.pyx"], "language": "c++", "include_np": True},
     ],
     "linear_model": [
         {"sources": ["_cd_fast.pyx"], "include_np": True},
