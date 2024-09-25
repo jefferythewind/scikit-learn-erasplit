@@ -192,14 +192,8 @@ extension_config = {
     "__check_build": [
         {"sources": ["_check_build.pyx"]},
     ],
-    "": [
-        {"sources": ["_isotonic.pyx"], "include_np": True},
-    ],
     "_loss": [
         {"sources": ["_loss.pyx.tp"]},
-    ],
-    "ensemble": [
-        {"sources": ["_gradient_boosting.pyx"], "include_np": True},
     ],
     "ensemble._hist_gradient_boosting": [
         {"sources": ["_gradient_boosting.pyx"], "include_np": True},
@@ -212,136 +206,6 @@ extension_config = {
         {"sources": ["_bitset.pyx"], "include_np": True},
         {"sources": ["common.pyx"], "include_np": True},
         {"sources": ["utils.pyx"], "include_np": True},
-    ],
-    "linear_model": [
-        {"sources": ["_cd_fast.pyx"], "include_np": True},
-        {"sources": ["_sgd_fast.pyx.tp"], "include_np": True},
-        {"sources": ["_sag_fast.pyx.tp"], "include_np": True},
-    ],
-    "manifold": [
-        {"sources": ["_utils.pyx"], "include_np": True},
-        {"sources": ["_barnes_hut_tsne.pyx"], "include_np": True},
-    ],
-    "metrics": [
-        {"sources": ["_pairwise_fast.pyx"], "include_np": True},
-        {
-            "sources": ["_dist_metrics.pyx.tp", "_dist_metrics.pxd.tp"],
-            "include_np": True,
-        },
-    ],
-    "metrics.cluster": [
-        {"sources": ["_expected_mutual_info_fast.pyx"], "include_np": True},
-    ],
-    "metrics._pairwise_distances_reduction": [
-        {
-            "sources": ["_datasets_pair.pyx.tp", "_datasets_pair.pxd.tp"],
-            "language": "c++",
-            "include_np": True,
-            "extra_compile_args": ["-std=c++11"],
-        },
-        {
-            "sources": ["_middle_term_computer.pyx.tp", "_middle_term_computer.pxd.tp"],
-            "language": "c++",
-            "include_np": True,
-            "extra_compile_args": ["-std=c++11"],
-        },
-        {
-            "sources": ["_base.pyx.tp", "_base.pxd.tp"],
-            "language": "c++",
-            "include_np": True,
-            "extra_compile_args": ["-std=c++11"],
-        },
-        {
-            "sources": ["_argkmin.pyx.tp", "_argkmin.pxd.tp"],
-            "language": "c++",
-            "include_np": True,
-            "extra_compile_args": ["-std=c++11"],
-        },
-        {
-            "sources": ["_radius_neighbors.pyx.tp", "_radius_neighbors.pxd.tp"],
-            "language": "c++",
-            "include_np": True,
-            "extra_compile_args": ["-std=c++11"],
-        },
-    ],
-    "preprocessing": [
-        {"sources": ["_csr_polynomial_expansion.pyx"], "include_np": True},
-    ],
-    "neighbors": [
-        {"sources": ["_ball_tree.pyx"], "include_np": True},
-        {"sources": ["_kd_tree.pyx"], "include_np": True},
-        {"sources": ["_partition_nodes.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_quad_tree.pyx"], "include_np": True},
-    ],
-    "svm": [
-        {
-            "sources": ["_newrand.pyx"],
-            "include_np": True,
-            "include_dirs": [join("src", "newrand")],
-            "language": "c++",
-            # Use C++11 random number generator fix
-            "extra_compile_args": ["-std=c++11"],
-        },
-        {
-            "sources": ["_libsvm.pyx"],
-            "depends": [
-                join("src", "libsvm", "libsvm_helper.c"),
-                join("src", "libsvm", "libsvm_template.cpp"),
-                join("src", "libsvm", "svm.cpp"),
-                join("src", "libsvm", "svm.h"),
-                join("src", "newrand", "newrand.h"),
-            ],
-            "include_dirs": [
-                join("src", "libsvm"),
-                join("src", "newrand"),
-            ],
-            "libraries": ["libsvm-skl"],
-            "extra_link_args": ["-lstdc++"],
-            "include_np": True,
-        },
-        {
-            "sources": ["_liblinear.pyx"],
-            "libraries": ["liblinear-skl"],
-            "include_dirs": [
-                join("src", "liblinear"),
-                join("src", "newrand"),
-                join("..", "utils"),
-            ],
-            "include_np": True,
-            "depends": [
-                join("src", "liblinear", "tron.h"),
-                join("src", "liblinear", "linear.h"),
-                join("src", "liblinear", "liblinear_helper.c"),
-                join("src", "newrand", "newrand.h"),
-            ],
-            "extra_link_args": ["-lstdc++"],
-        },
-        {
-            "sources": ["_libsvm_sparse.pyx"],
-            "libraries": ["libsvm-skl"],
-            "include_dirs": [
-                join("src", "libsvm"),
-                join("src", "newrand"),
-            ],
-            "include_np": True,
-            "depends": [
-                join("src", "libsvm", "svm.h"),
-                join("src", "newrand", "newrand.h"),
-                join("src", "libsvm", "libsvm_sparse_helper.c"),
-            ],
-            "extra_link_args": ["-lstdc++"],
-        },
-    ],
-    "tree": [
-        {
-            "sources": ["_tree.pyx"],
-            "language": "c++",
-            "include_np": True,
-            "optimization_level": "O3",
-        },
-        {"sources": ["_splitter.pyx"], "include_np": True, "optimization_level": "O3"},
-        {"sources": ["_criterion.pyx"], "include_np": True, "optimization_level": "O3"},
-        {"sources": ["_utils.pyx"], "include_np": True, "optimization_level": "O3"},
     ],
     "utils": [
         {"sources": ["sparsefuncs_fast.pyx"], "include_np": True},
@@ -372,41 +236,7 @@ extension_config = {
 
 # Paths in `libraries` must be relative to the root directory because `libraries` is
 # passed directly to `setup`
-libraries = [
-    (
-        "libsvm-skl",
-        {
-            "sources": [
-                join("sklearn", "svm", "src", "libsvm", "libsvm_template.cpp"),
-            ],
-            "depends": [
-                join("sklearn", "svm", "src", "libsvm", "svm.cpp"),
-                join("sklearn", "svm", "src", "libsvm", "svm.h"),
-                join("sklearn", "svm", "src", "newrand", "newrand.h"),
-            ],
-            # Use C++11 to use the random number generator fix
-            "extra_compiler_args": ["-std=c++11"],
-            "extra_link_args": ["-lstdc++"],
-        },
-    ),
-    (
-        "liblinear-skl",
-        {
-            "sources": [
-                join("sklearn", "svm", "src", "liblinear", "linear.cpp"),
-                join("sklearn", "svm", "src", "liblinear", "tron.cpp"),
-            ],
-            "depends": [
-                join("sklearn", "svm", "src", "liblinear", "linear.h"),
-                join("sklearn", "svm", "src", "liblinear", "tron.h"),
-                join("sklearn", "svm", "src", "newrand", "newrand.h"),
-            ],
-            # Use C++11 to use the random number generator fix
-            "extra_compiler_args": ["-std=c++11"],
-            "extra_link_args": ["-lstdc++"],
-        },
-    ),
-]
+libraries = []
 
 
 def configure_extension_modules():
