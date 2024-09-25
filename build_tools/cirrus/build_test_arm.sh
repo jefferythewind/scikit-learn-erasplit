@@ -42,7 +42,7 @@ python --version
 
 # Set parallelism to $N_CORES + 1 to overlap IO bound tasks with CPU bound tasks on CI
 # workers with $N_CORES cores when building the compiled extensions of scikit-learn.
-export SKLEARN_BUILD_PARALLEL=$(($N_CORES + 1))
+export erasplit_BUILD_PARALLEL=$(($N_CORES + 1))
 
 # Disable the build isolation and build in the tree so that the same folder can be
 # cached between CI runs.
@@ -56,7 +56,7 @@ mamba list
 # Changing directory not to have module resolution use scikit-learn source
 # directory but to the installed package.
 cd /tmp
-python -c "import sklearn; sklearn.show_versions()"
-python -m threadpoolctl --import sklearn
+python -c "import erasplit; erasplit.show_versions()"
+python -m threadpoolctl --import erasplit
 # Test using as many workers as available cores
-pytest --pyargs -n $N_CORES sklearn
+pytest --pyargs -n $N_CORES erasplit

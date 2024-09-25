@@ -26,6 +26,6 @@ codecov:
     after_n_builds: 6
 
 ignore:
-- "sklearn/externals"
-- "sklearn/_build_utils"
+- "erasplit/externals"
+- "erasplit/_build_utils"
 - "**/setup.py"

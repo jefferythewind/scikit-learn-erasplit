@@ -26,7 +26,7 @@ from numerapi import NumerAPI #pip install numerapi
 import json
 
 """Era Split Model"""
-from sklearn.ensemble import EraHistGradientBoostingRegressor
+from erasplit.ensemble import EraHistGradientBoostingRegressor
 
 napi = NumerAPI()
 Path("./v4").mkdir(parents=False, exist_ok=True)

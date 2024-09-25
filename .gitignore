@@ -8,8 +8,8 @@
 *.swo
 .DS_Store
 build
-sklearn/datasets/__config__.py
-sklearn/**/*.html
+erasplit/datasets/__config__.py
+erasplit/**/*.html
 
 dist/
 MANIFEST
@@ -76,25 +76,25 @@ _configtest.o.d
 .mypy_cache/
 
 # virtualenv from advanced installation guide
-sklearn-env/
+erasplit-env/
 
 # files generated from a template
-sklearn/_loss/_loss.pyx
-sklearn/utils/_seq_dataset.pyx
-sklearn/utils/_seq_dataset.pxd
-sklearn/utils/_weight_vector.pyx
-sklearn/utils/_weight_vector.pxd
-sklearn/linear_model/_sag_fast.pyx
-sklearn/linear_model/_sgd_fast.pyx
-sklearn/metrics/_dist_metrics.pyx
-sklearn/metrics/_dist_metrics.pxd
-sklearn/metrics/_pairwise_distances_reduction/_argkmin.pxd
-sklearn/metrics/_pairwise_distances_reduction/_argkmin.pyx
-sklearn/metrics/_pairwise_distances_reduction/_base.pxd
-sklearn/metrics/_pairwise_distances_reduction/_base.pyx
-sklearn/metrics/_pairwise_distances_reduction/_datasets_pair.pxd
-sklearn/metrics/_pairwise_distances_reduction/_datasets_pair.pyx
-sklearn/metrics/_pairwise_distances_reduction/_middle_term_computer.pxd
-sklearn/metrics/_pairwise_distances_reduction/_middle_term_computer.pyx
-sklearn/metrics/_pairwise_distances_reduction/_radius_neighbors.pxd
-sklearn/metrics/_pairwise_distances_reduction/_radius_neighbors.pyx
+erasplit/_loss/_loss.pyx
+erasplit/utils/_seq_dataset.pyx
+erasplit/utils/_seq_dataset.pxd
+erasplit/utils/_weight_vector.pyx
+erasplit/utils/_weight_vector.pxd
+erasplit/linear_model/_sag_fast.pyx
+erasplit/linear_model/_sgd_fast.pyx
+erasplit/metrics/_dist_metrics.pyx
+erasplit/metrics/_dist_metrics.pxd
+erasplit/metrics/_pairwise_distances_reduction/_argkmin.pxd
+erasplit/metrics/_pairwise_distances_reduction/_argkmin.pyx
+erasplit/metrics/_pairwise_distances_reduction/_base.pxd
+erasplit/metrics/_pairwise_distances_reduction/_base.pyx
+erasplit/metrics/_pairwise_distances_reduction/_datasets_pair.pxd
+erasplit/metrics/_pairwise_distances_reduction/_datasets_pair.pyx
+erasplit/metrics/_pairwise_distances_reduction/_middle_term_computer.pxd
+erasplit/metrics/_pairwise_distances_reduction/_middle_term_computer.pyx
+erasplit/metrics/_pairwise_distances_reduction/_radius_neighbors.pxd
+erasplit/metrics/_pairwise_distances_reduction/_radius_neighbors.pyx

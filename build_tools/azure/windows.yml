@@ -15,7 +15,7 @@ jobs:
   variables:
     VIRTUALENV: 'testvenv'
     JUNITXML: 'test-data.xml'
-    SKLEARN_SKIP_NETWORK_TESTS: '1'
+    erasplit_SKIP_NETWORK_TESTS: '1'
     PYTEST_XDIST_VERSION: 'latest'
     TEST_DIR: '$(Agent.WorkFolder)/tmp_folder'
     SHOW_SHORT_SUMMARY: 'false'

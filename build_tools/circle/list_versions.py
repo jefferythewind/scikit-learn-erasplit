@@ -5,7 +5,7 @@ import json
 import re
 import sys
 
-from sklearn.utils.fixes import parse_version
+from erasplit.utils.fixes import parse_version
 from urllib.request import urlopen
 
 

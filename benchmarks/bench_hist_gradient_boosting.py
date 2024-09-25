@@ -3,12 +3,12 @@ import argparse
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.datasets import make_classification
-from sklearn.datasets import make_regression
-from sklearn.ensemble._hist_gradient_boosting.utils import get_equivalent_estimator
+from erasplit.model_selection import train_test_split
+from erasplit.ensemble import HistGradientBoostingRegressor
+from erasplit.ensemble import HistGradientBoostingClassifier
+from erasplit.datasets import make_classification
+from erasplit.datasets import make_regression
+from erasplit.ensemble._hist_gradient_boosting.utils import get_equivalent_estimator
 
 
 parser = argparse.ArgumentParser()
@@ -101,7 +101,7 @@ def one_run(n_samples):
     assert X_train.shape[0] == n_samples
     assert X_test.shape[0] == n_samples
     print("Data size: %d samples train, %d samples test." % (n_samples, n_samples))
-    print("Fitting a sklearn model...")
+    print("Fitting a erasplit model...")
     tic = time()
     est = Estimator(
         learning_rate=lr,
@@ -122,13 +122,13 @@ def one_run(n_samples):
             loss = "squared_error"
     est.set_params(loss=loss)
     est.fit(X_train, y_train, sample_weight=sample_weight_train)
-    sklearn_fit_duration = time() - tic
+    erasplit_fit_duration = time() - tic
     tic = time()
-    sklearn_score = est.score(X_test, y_test)
-    sklearn_score_duration = time() - tic
-    print("score: {:.4f}".format(sklearn_score))
-    print("fit duration: {:.3f}s,".format(sklearn_fit_duration))
-    print("score duration: {:.3f}s,".format(sklearn_score_duration))
+    erasplit_score = est.score(X_test, y_test)
+    erasplit_score_duration = time() - tic
+    print("score: {:.4f}".format(erasplit_score))
+    print("fit duration: {:.3f}s,".format(erasplit_fit_duration))
+    print("score duration: {:.3f}s,".format(erasplit_score_duration))
 
     lightgbm_score = None
     lightgbm_fit_duration = None
@@ -186,9 +186,9 @@ def one_run(n_samples):
         print("score duration: {:.3f}s,".format(cat_score_duration))
 
     return (
-        sklearn_score,
-        sklearn_fit_duration,
-        sklearn_score_duration,
+        erasplit_score,
+        erasplit_fit_duration,
+        erasplit_score_duration,
         lightgbm_score,
         lightgbm_fit_duration,
         lightgbm_score_duration,
@@ -206,9 +206,9 @@ n_samples_list = [
     n_samples for n_samples in n_samples_list if n_samples <= args.n_samples_max
 ]
 
-sklearn_scores = []
-sklearn_fit_durations = []
-sklearn_score_durations = []
+erasplit_scores = []
+erasplit_fit_durations = []
+erasplit_score_durations = []
 lightgbm_scores = []
 lightgbm_fit_durations = []
 lightgbm_score_durations = []
@@ -221,9 +221,9 @@ cat_score_durations = []
 
 for n_samples in n_samples_list:
     (
-        sklearn_score,
-        sklearn_fit_duration,
-        sklearn_score_duration,
+        erasplit_score,
+        erasplit_fit_duration,
+        erasplit_score_duration,
         lightgbm_score,
         lightgbm_fit_duration,
         lightgbm_score_duration,
@@ -236,9 +236,9 @@ for n_samples in n_samples_list:
     ) = one_run(n_samples)
 
     for scores, score in (
-        (sklearn_scores, sklearn_score),
-        (sklearn_fit_durations, sklearn_fit_duration),
-        (sklearn_score_durations, sklearn_score_duration),
+        (erasplit_scores, erasplit_score),
+        (erasplit_fit_durations, erasplit_fit_duration),
+        (erasplit_score_durations, erasplit_score_duration),
         (lightgbm_scores, lightgbm_score),
         (lightgbm_fit_durations, lightgbm_fit_duration),
         (lightgbm_score_durations, lightgbm_score_duration),
@@ -253,9 +253,9 @@ for n_samples in n_samples_list:
 
 fig, axs = plt.subplots(3, sharex=True)
 
-axs[0].plot(n_samples_list, sklearn_scores, label="sklearn")
-axs[1].plot(n_samples_list, sklearn_fit_durations, label="sklearn")
-axs[2].plot(n_samples_list, sklearn_score_durations, label="sklearn")
+axs[0].plot(n_samples_list, erasplit_scores, label="erasplit")
+axs[1].plot(n_samples_list, erasplit_fit_durations, label="erasplit")
+axs[2].plot(n_samples_list, erasplit_score_durations, label="erasplit")
 
 if args.lightgbm:
     axs[0].plot(n_samples_list, lightgbm_scores, label="lightgbm")

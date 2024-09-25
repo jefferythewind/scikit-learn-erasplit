@@ -1,4 +1,4 @@
-from sklearn.cluster import KMeans, MiniBatchKMeans
+from erasplit.cluster import KMeans, MiniBatchKMeans
 
 from .common import Benchmark, Estimator, Predictor, Transformer
 from .datasets import _blobs_dataset, _20newsgroups_highdim_dataset

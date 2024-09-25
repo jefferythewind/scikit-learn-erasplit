@@ -23,21 +23,21 @@ except ImportError:
     import __builtin__ as builtins
 
 # This is a bit (!) hackish: we are setting a global variable so that the main
-# sklearn __init__ can detect if it is being loaded by the setup routine, to
+# erasplit __init__ can detect if it is being loaded by the setup routine, to
 # avoid attempting to load components that aren't built yet.
 # TODO: can this be simplified or removed since the switch to setuptools
 # away from numpy.distutils?
-builtins.__SKLEARN_SETUP__ = True
+builtins.__erasplit_SETUP__ = True
 
 
-DISTNAME = "scikit-learn"
-DESCRIPTION = "A set of python modules for machine learning and data mining"
+DISTNAME = "erasplit"
+DESCRIPTION = "Invariant Gradient Boosted Decision Tree Package - Era Splitting."
 with open("README.rst") as f:
     LONG_DESCRIPTION = f.read()
-MAINTAINER = "Andreas Mueller"
-MAINTAINER_EMAIL = "amueller@ais.uni-bonn.de"
-URL = "http://scikit-learn.org"
-DOWNLOAD_URL = "https://pypi.org/project/scikit-learn/#files"
+MAINTAINER = "Tim DeLise"
+MAINTAINER_EMAIL = "tdelise@gmail.com"
+URL = "https://arxiv.org/abs/2309.14496"
+DOWNLOAD_URL = "pypi address"
 LICENSE = "new BSD"
 PROJECT_URLS = {
     "Bug Tracker": "https://github.com/scikit-learn/scikit-learn/issues",
@@ -45,15 +45,15 @@ PROJECT_URLS = {
     "Source Code": "https://github.com/scikit-learn/scikit-learn",
 }
 
-# We can actually import a restricted version of sklearn that
+# We can actually import a restricted version of erasplit that
 # does not need the compiled code
-import sklearn  # noqa
-import sklearn._min_dependencies as min_deps  # noqa
-from sklearn._build_utils import _check_cython_version  # noqa
-from sklearn.externals._packaging.version import parse as parse_version  # noqa
+import erasplit  # noqa
+import erasplit._min_dependencies as min_deps  # noqa
+from erasplit._build_utils import _check_cython_version  # noqa
+from erasplit.externals._packaging.version import parse as parse_version  # noqa
 
 
-VERSION = sklearn.__version__
+VERSION = erasplit.__version__
 
 # Custom clean command to remove build artifacts
 
@@ -77,7 +77,7 @@ class CleanCommand(Command):
             print("Will remove generated .c files")
         if os.path.exists("build"):
             shutil.rmtree("build")
-        for dirpath, dirnames, filenames in os.walk("sklearn"):
+        for dirpath, dirnames, filenames in os.walk("erasplit"):
             for filename in filenames:
                 if any(
                     filename.endswith(suffix)
@@ -108,14 +108,14 @@ class build_ext_subclass(build_ext):
             # Do not override self.parallel if already defined by
             # command-line flag (--parallel or -j)
 
-            parallel = os.environ.get("SKLEARN_BUILD_PARALLEL")
+            parallel = os.environ.get("erasplit_BUILD_PARALLEL")
             if parallel:
                 self.parallel = int(parallel)
         if self.parallel:
             print("setting parallel=%d " % self.parallel)
 
     def build_extensions(self):
-        from sklearn._build_utils.openmp_helpers import get_openmp_flag
+        from erasplit._build_utils.openmp_helpers import get_openmp_flag
 
         # Always use NumPy 1.7 C API for all compiled extensions.
         # See: https://numpy.org/doc/stable/reference/c-api/deprecations.html
@@ -126,7 +126,7 @@ class build_ext_subclass(build_ext):
         for ext in self.extensions:
             ext.define_macros.append(DEFINE_MACRO_NUMPY_C_API)
 
-        if sklearn._OPENMP_SUPPORTED:
+        if erasplit._OPENMP_SUPPORTED:
             openmp_flag = get_openmp_flag()
 
             for e in self.extensions:
@@ -207,31 +207,6 @@ extension_config = {
         {"sources": ["common.pyx"], "include_np": True},
         {"sources": ["utils.pyx"], "include_np": True},
     ],
-    "utils": [
-        {"sources": ["sparsefuncs_fast.pyx"], "include_np": True},
-        {"sources": ["_cython_blas.pyx"]},
-        {"sources": ["arrayfuncs.pyx"]},
-        {
-            "sources": ["murmurhash.pyx", join("src", "MurmurHash3.cpp")],
-            "include_dirs": ["src"],
-            "include_np": True,
-        },
-        {"sources": ["_fast_dict.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_fast_dict.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_openmp_helpers.pyx"]},
-        {"sources": ["_seq_dataset.pyx.tp", "_seq_dataset.pxd.tp"], "include_np": True},
-        {
-            "sources": ["_weight_vector.pyx.tp", "_weight_vector.pxd.tp"],
-            "include_np": True,
-        },
-        {"sources": ["_random.pyx"], "include_np": True},
-        {"sources": ["_logistic_sigmoid.pyx"], "include_np": True},
-        {"sources": ["_typedefs.pyx"], "include_np": True},
-        {"sources": ["_heap.pyx"], "include_np": True},
-        {"sources": ["_sorting.pyx"], "include_np": True},
-        {"sources": ["_vector_sentinel.pyx"], "language": "c++", "include_np": True},
-        {"sources": ["_isfinite.pyx"]},
-    ],
 }
 
 # Paths in `libraries` must be relative to the root directory because `libraries` is
@@ -246,8 +221,8 @@ def configure_extension_modules():
     if "sdist" in sys.argv or "--help" in sys.argv:
         return []
 
-    from sklearn._build_utils import cythonize_extensions
-    from sklearn._build_utils import gen_from_templates
+    from erasplit._build_utils import cythonize_extensions
+    from erasplit._build_utils import gen_from_templates
     import numpy
 
     is_pypy = platform.python_implementation() == "PyPy"
@@ -261,7 +236,7 @@ def configure_extension_modules():
 
     default_extra_compile_args = []
     build_with_debug_symbols = (
-        os.environ.get("SKLEARN_BUILD_ENABLE_DEBUG_SYMBOLS", "0") != "0"
+        os.environ.get("erasplit_BUILD_ENABLE_DEBUG_SYMBOLS", "0") != "0"
     )
     if os.name == "posix":
         if build_with_debug_symbols:
@@ -273,7 +248,7 @@ def configure_extension_modules():
     cython_exts = []
     for submodule, extensions in extension_config.items():
         submodule_parts = submodule.split(".")
-        parent_dir = join("sklearn", *submodule_parts)
+        parent_dir = join("erasplit", *submodule_parts)
         for extension in extensions:
             if is_pypy and not extension.get("compile_for_pypy", True):
                 continue
@@ -302,9 +277,9 @@ def configure_extension_modules():
             # By convention, our extensions always use the name of the first source
             source_name = os.path.splitext(os.path.basename(sources[0]))[0]
             if submodule:
-                name_parts = ["sklearn", submodule, source_name]
+                name_parts = ["erasplit", submodule, source_name]
             else:
-                name_parts = ["sklearn", source_name]
+                name_parts = ["erasplit", source_name]
             name = ".".join(name_parts)
 
             # Make paths start from the root directory

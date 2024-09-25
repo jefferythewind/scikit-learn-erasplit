@@ -13,7 +13,7 @@ if [[ $(uname) == "Darwin" ]]; then
         if [[ $(uname -m) == "x86_64" ]]; then
             # arm64 builds must cross compile because the CI instance is x86
             # This turns off the computation of the test program in
-            # sklearn/_build_utils/pre_build_helpers.py
+            # erasplit/_build_utils/pre_build_helpers.py
             export PYTHON_CROSSENV=1
         fi
         # SciPy requires 12.0 on arm to prevent kernel panics

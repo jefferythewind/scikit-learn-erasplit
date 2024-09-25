@@ -3,8 +3,8 @@ import scipy.sparse as sp
 from joblib import Memory
 from pathlib import Path
 
-from sklearn.decomposition import TruncatedSVD
-from sklearn.datasets import (
+from erasplit.decomposition import TruncatedSVD
+from erasplit.datasets import (
     make_blobs,
     fetch_20newsgroups,
     fetch_openml,
@@ -13,9 +13,9 @@ from sklearn.datasets import (
     make_classification,
     fetch_olivetti_faces,
 )
-from sklearn.preprocessing import MaxAbsScaler, StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
+from erasplit.preprocessing import MaxAbsScaler, StandardScaler
+from erasplit.feature_extraction.text import TfidfVectorizer
+from erasplit.model_selection import train_test_split
 
 # memory location for caching datasets
 M = Memory(location=str(Path(__file__).resolve().parent / "cache"))

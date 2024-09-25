@@ -89,9 +89,9 @@ scikit_learn_install() {
 
     # Set parallelism to 3 to overlap IO bound tasks with CPU bound tasks on CI
     # workers with 2 cores when building the compiled extensions of scikit-learn.
-    export SKLEARN_BUILD_PARALLEL=3
+    export erasplit_BUILD_PARALLEL=3
 
-    if [[ "$UNAMESTR" == "Darwin" && "$SKLEARN_TEST_NO_OPENMP" == "true" ]]; then
+    if [[ "$UNAMESTR" == "Darwin" && "$erasplit_TEST_NO_OPENMP" == "true" ]]; then
         # Without openmp, we use the system clang. Here we use /usr/bin/ar
         # instead because llvm-ar errors
         export AR=/usr/bin/ar

@@ -1,4 +1,4 @@
-from sklearn.ensemble import (
+from erasplit.ensemble import (
     RandomForestClassifier,
     GradientBoostingClassifier,
     HistGradientBoostingClassifier,

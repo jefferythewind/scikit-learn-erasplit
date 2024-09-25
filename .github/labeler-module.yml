@@ -1,80 +1,80 @@
 module:cluster:
-- sklearn/cluster/**/*
+- erasplit/cluster/**/*
 
 module:common:
-- sklearn/common/**/*
+- erasplit/common/**/*
 
 module:compose:
-- sklearn/compose/**/*
+- erasplit/compose/**/*
 
 module:covariance:
-- sklearn/covariance/**/*
+- erasplit/covariance/**/*
 
 module:cross_decomposition:
-- sklearn/cross_decomposition/**/*
+- erasplit/cross_decomposition/**/*
 
 module:datasets:
-- sklearn/datasets/**/*
+- erasplit/datasets/**/*
 
 module:decomposition:
-- sklearn/decomposition/**/*
+- erasplit/decomposition/**/*
 
 module:ensemble:
-- sklearn/ensemble/**/*
+- erasplit/ensemble/**/*
 
 module:feature_extraction:
-- sklearn/feature_extraction/**/*
+- erasplit/feature_extraction/**/*
 
 module:feature_selection:
-- sklearn/feature_selection/**/*
+- erasplit/feature_selection/**/*
 
 module:gaussian_process:
-- sklearn/gaussian_process/**/*
+- erasplit/gaussian_process/**/*
 
 module:impute:
-- sklearn/impute/**/*
+- erasplit/impute/**/*
 
 module:inspection:
-- sklearn/inspection/**/*
+- erasplit/inspection/**/*
 
 module:linear_model:
-- sklearn/linear_model/**/*
+- erasplit/linear_model/**/*
 
 module:manifold:
-- sklearn/manifold/**/*
+- erasplit/manifold/**/*
 
 module:metrics:
-- sklearn/metrics/**/*
+- erasplit/metrics/**/*
 
 module:mixture:
-- sklearn/mixture/**/*
+- erasplit/mixture/**/*
 
 module:model_selection:
-- sklearn/model_selection/**/*
+- erasplit/model_selection/**/*
 
 module:naive_bayes:
-- sklearn/naive_bayes.py
+- erasplit/naive_bayes.py
 
 module:neighbors:
-- sklearn/neighbors/**/*
+- erasplit/neighbors/**/*
 
 module:neural_network:
-- sklearn/neural_network/**/*
+- erasplit/neural_network/**/*
 
 module:pipeline:
-- sklearn/pipeline.py
+- erasplit/pipeline.py
 
 module:preprocessing:
-- sklearn/preprocessing/**/*
+- erasplit/preprocessing/**/*
 
 module:semi_supervised:
-- sklearn/semi_supervised/**/*
+- erasplit/semi_supervised/**/*
 
 module:svm:
-- sklearn/svm/**/*
+- erasplit/svm/**/*
 
 module:tree:
-- sklearn/tree/**/*
+- erasplit/tree/**/*
 
 module:utils:
-- sklearn/utils/**/*
+- erasplit/utils/**/*

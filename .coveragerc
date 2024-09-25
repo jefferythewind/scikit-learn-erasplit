@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = sklearn
+source = erasplit
 parallel = True
 omit =
-    */sklearn/externals/*
-    */sklearn/_build_utils/*
+    */erasplit/externals/*
+    */erasplit/_build_utils/*
     */benchmarks/*
     **/setup.py

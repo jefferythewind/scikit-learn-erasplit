@@ -1,4 +1,4 @@
-# Tweet the URL of a commit on @sklearn_commits whenever a push event
+# Tweet the URL of a commit on @erasplit_commits whenever a push event
 # happens on the main branch
 name: Twitter Push Notification
 
@@ -14,7 +14,7 @@ jobs:
     name: Twitter Notification
     runs-on: ubuntu-latest
     steps:
-      - name: Tweet URL of last commit as @sklearn_commits
+      - name: Tweet URL of last commit as @erasplit_commits
         if: github.repository == 'scikit-learn/scikit-learn'
         uses: docker://thomasjpfan/twitter-action:0.3
         with:

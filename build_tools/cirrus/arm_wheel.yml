@@ -6,8 +6,8 @@ macos_arm64_wheel_task:
     CONFTEST_NAME: conftest.py
     CIBW_ENVIRONMENT: OMP_NUM_THREADS=2
                       OPENBLAS_NUM_THREADS=2
-                      SKLEARN_SKIP_NETWORK_TESTS=1
-                      SKLEARN_BUILD_PARALLEL=5
+                      erasplit_SKIP_NETWORK_TESTS=1
+                      erasplit_BUILD_PARALLEL=5
                       CPU_COUNT=2
     CIBW_TEST_COMMAND: bash {project}/build_tools/wheels/test_wheels.sh
     CIBW_TEST_REQUIRES: pytest pandas threadpoolctl pytest-xdist
@@ -56,8 +56,8 @@ linux_arm64_wheel_task:
     CONFTEST_NAME: conftest.py
     CIBW_ENVIRONMENT: OMP_NUM_THREADS=2
                       OPENBLAS_NUM_THREADS=2
-                      SKLEARN_SKIP_NETWORK_TESTS=1
-                      SKLEARN_BUILD_PARALLEL=5
+                      erasplit_SKIP_NETWORK_TESTS=1
+                      erasplit_BUILD_PARALLEL=5
                       CPU_COUNT=4
     CIBW_TEST_COMMAND: bash {project}/build_tools/wheels/test_wheels.sh
     CIBW_TEST_REQUIRES: pytest pandas threadpoolctl pytest-xdist

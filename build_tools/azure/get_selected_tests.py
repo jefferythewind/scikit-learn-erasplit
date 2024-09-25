@@ -4,7 +4,7 @@ from get_commit_message import get_commit_message
 def get_selected_tests():
     """Parse the commit message to check if pytest should run only specific tests.
 
-    If so, selected tests will be run with SKLEARN_TESTS_GLOBAL_RANDOM_SEED="all".
+    If so, selected tests will be run with erasplit_TESTS_GLOBAL_RANDOM_SEED="all".
 
     The commit message must take the form:
         <title> [all random seeds]

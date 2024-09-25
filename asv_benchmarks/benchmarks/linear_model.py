@@ -1,4 +1,4 @@
-from sklearn.linear_model import (
+from erasplit.linear_model import (
     LogisticRegression,
     Ridge,
     ElasticNet,

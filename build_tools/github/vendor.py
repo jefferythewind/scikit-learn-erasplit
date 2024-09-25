@@ -8,8 +8,8 @@ import sys
 import textwrap
 
 
-TARGET_FOLDER = op.join("sklearn", ".libs")
-DISTRIBUTOR_INIT = op.join("sklearn", "_distributor_init.py")
+TARGET_FOLDER = op.join("erasplit", ".libs")
+DISTRIBUTOR_INIT = op.join("erasplit", "_distributor_init.py")
 VCOMP140_SRC_PATH = "C:\\Windows\\System32\\vcomp140.dll"
 MSVCP140_SRC_PATH = "C:\\Windows\\System32\\msvcp140.dll"
 
@@ -21,7 +21,7 @@ def make_distributor_init_64_bits(
 ):
     """Create a _distributor_init.py file for 64-bit architectures.
 
-    This file is imported first when importing the sklearn package
+    This file is imported first when importing the erasplit package
     so as to pre-load the vendored vcomp140.dll and msvcp140.dll.
     """
     with open(distributor_init, "wt") as f:
@@ -74,7 +74,7 @@ def main(wheel_dirname):
     target_folder = op.join(wheel_dirname, TARGET_FOLDER)
     distributor_init = op.join(wheel_dirname, DISTRIBUTOR_INIT)
 
-    # Create the "sklearn/.libs" subfolder
+    # Create the "erasplit/.libs" subfolder
     if not op.exists(target_folder):
         os.mkdir(target_folder)
 

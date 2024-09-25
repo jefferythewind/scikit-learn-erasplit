@@ -19,7 +19,7 @@ jobs:
     OMP_NUM_THREADS: '2'
     OPENBLAS_NUM_THREADS: '2'
     CPU_COUNT: '2'
-    SKLEARN_SKIP_NETWORK_TESTS: '1'
+    erasplit_SKIP_NETWORK_TESTS: '1'
     PYTEST_XDIST_VERSION: 'latest'
     COVERAGE: 'false'
     # Set in azure-pipelines.yml
@@ -73,7 +73,7 @@ jobs:
         -e PYTEST_XDIST_VERSION
         -e OMP_NUM_THREADS
         -e OPENBLAS_NUM_THREADS
-        -e SKLEARN_SKIP_NETWORK_TESTS
+        -e erasplit_SKIP_NETWORK_TESTS
         -e SELECTED_TESTS
         -e CPU_COUNT
         -e CCACHE_COMPRESS

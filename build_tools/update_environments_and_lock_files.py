@@ -7,7 +7,7 @@ Two scenarios where this script can be useful:
 - make sure that the latest versions of all the dependencies are used in the CI.
   We can run this script regularly and open a PR with the changes to the lock
   files. This workflow will eventually be automated with a bot in the future.
-- bump minimum dependencies in sklearn/_min_dependencies.py. Running this
+- bump minimum dependencies in erasplit/_min_dependencies.py. Running this
   script will update both the CI environment files and associated lock files.
   You can then open a PR with the changes.
 - pin some packages to an older version by adding them to the
@@ -24,7 +24,7 @@ with pip.
 
 To run this script you need:
 - conda-lock. The version should match the one used in the CI in
-  sklearn/_min_dependencies.py
+  erasplit/_min_dependencies.py
 - pip-tools
 
 """
@@ -394,7 +394,7 @@ def get_package_with_constraint(package_name, build_metadata, uses_pip=False):
     comment = ""
     if constraint == "min":
         constraint = execute_command(
-            [sys.executable, "sklearn/_min_dependencies.py", package_name]
+            [sys.executable, "erasplit/_min_dependencies.py", package_name]
         ).strip()
         comment = "  # min"
 
@@ -545,7 +545,7 @@ def write_all_pip_lock_files(build_metadata_list):
 def check_conda_lock_version():
     # Check that the installed conda-lock version is consistent with _min_dependencies.
     expected_conda_lock_version = execute_command(
-        [sys.executable, "sklearn/_min_dependencies.py", "conda-lock"]
+        [sys.executable, "erasplit/_min_dependencies.py", "conda-lock"]
     ).strip()
 
     installed_conda_lock_version = version("conda-lock")

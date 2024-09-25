@@ -11,7 +11,7 @@ get_dep() {
         # use latest
         echo "$package"
     elif [[ "$version" == "min" ]]; then
-        echo "$package==$(python sklearn/_min_dependencies.py $package)"
+        echo "$package==$(python erasplit/_min_dependencies.py $package)"
     fi
 }
 

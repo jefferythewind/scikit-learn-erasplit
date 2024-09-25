@@ -1,5 +1,5 @@
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, cross_val_score
+from erasplit.ensemble import RandomForestClassifier
+from erasplit.model_selection import GridSearchCV, cross_val_score
 
 from .common import Benchmark, Estimator, Predictor
 from .datasets import _synth_classification_dataset

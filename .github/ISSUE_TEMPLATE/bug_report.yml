@@ -19,11 +19,11 @@ body:
   attributes:
     label: Steps/Code to Reproduce
     description: |
-      Please add a [minimal code example](https://scikit-learn.org/dev/developers/minimal_reproducer.html) that can reproduce the error when running it. Be as succinct as possible, **do not depend on external data files**: instead you can generate synthetic data using `numpy.random`, [sklearn.datasets.make_regression](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_regression.html), [sklearn.datasets.make_classification](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_classification.html) or a few lines of Python code. Example:
+      Please add a [minimal code example](https://scikit-learn.org/dev/developers/minimal_reproducer.html) that can reproduce the error when running it. Be as succinct as possible, **do not depend on external data files**: instead you can generate synthetic data using `numpy.random`, [erasplit.datasets.make_regression](https://scikit-learn.org/stable/modules/generated/erasplit.datasets.make_regression.html), [erasplit.datasets.make_classification](https://scikit-learn.org/stable/modules/generated/erasplit.datasets.make_classification.html) or a few lines of Python code. Example:
 
       ```python
-      from sklearn.feature_extraction.text import CountVectorizer
-      from sklearn.decomposition import LatentDirichletAllocation
+      from erasplit.feature_extraction.text import CountVectorizer
+      from erasplit.decomposition import LatentDirichletAllocation
       docs = ["Help I have a bug" for i in range(1000)]
       vectorizer = CountVectorizer(input=docs, analyzer='word')
       lda_features = vectorizer.fit_transform(docs)
@@ -85,7 +85,7 @@ body:
     description: |
       Please run the following and paste the output below.
       ```python
-      import sklearn; sklearn.show_versions()
+      import erasplit; erasplit.show_versions()
       ```
   validations:
     required: true

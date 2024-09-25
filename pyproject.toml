@@ -34,7 +34,7 @@ exclude = '''
   | doc/tutorial
   | doc/_build
   | doc/auto_examples
-  | sklearn/externals
+  | erasplit/externals
   | asv_benchmarks/env
 )/
 '''
